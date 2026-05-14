@@ -1,0 +1,740 @@
+/* iOS-стиль CSS для PWA приложения */
+
+:root {
+  /* Цветовая палитра в стиле iOS */
+  --ios-blue: #007AFF;
+  --ios-green: #34C759;
+  --ios-red: #FF3B30;
+  --ios-orange: #FF9500;
+  --ios-yellow: #FFCC00;
+  --ios-gray: #8E8E93;
+  --ios-light-gray: #F2F2F7;
+  --ios-system-gray: #636366;
+  --ios-separator: #C6C6C8;
+  
+  /* Фоны */
+  --background-primary: #FFFFFF;
+  --background-secondary: #F2F2F7;
+  --background-tertiary: #FFFFFF;
+  
+  /* Текст */
+  --text-primary: #000000;
+  --text-secondary: #3C3C4399;
+  --text-tertiary: #3C3C4361;
+  
+  /* Тени и границы */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 20px;
+  --border-radius-full: 9999px;
+}
+
+/* Темная тема (автоматически) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background-primary: #000000;
+    --background-secondary: #1C1C1E;
+    --background-tertiary: #2C2C2E;
+    --text-primary: #FFFFFF;
+    --text-secondary: #EBEBF599;
+    --text-tertiary: #EBEBF561;
+    --ios-separator: #38383A;
+  }
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  overscroll-behavior-y: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Контейнер приложения */
+.app-container {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100vh;
+  background-color: var(--background-primary);
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Навигационная панель в стиле iOS */
+.nav-bar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background-color: var(--background-primary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 0.5px solid var(--ios-separator);
+  padding: env(safe-area-inset-top) 16px 12px;
+}
+
+.nav-bar-title {
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.nav-bar-large {
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 8px;
+}
+
+.nav-bar-large .nav-bar-title {
+  font-size: 34px;
+  font-weight: 700;
+  text-align: left;
+}
+
+/* Контент с отступами */
+.content {
+  padding: 16px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
+}
+
+/* Карточки в стиле iOS */
+.card {
+  background-color: var(--background-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* Списки в стиле iOS */
+.ios-list {
+  background-color: var(--background-tertiary);
+  border-radius: var(--border-radius-md);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.ios-list-item {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background-color: var(--background-tertiary);
+  border-bottom: 0.5px solid var(--ios-separator);
+  transition: background-color 0.2s;
+}
+
+.ios-list-item:last-child {
+  border-bottom: none;
+}
+
+.ios-list-item:active {
+  background-color: var(--background-secondary);
+}
+
+.ios-list-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 12px;
+  font-size: 16px;
+}
+
+.ios-list-content {
+  flex: 1;
+}
+
+.ios-list-title {
+  font-size: 17px;
+  color: var(--text-primary);
+}
+
+.ios-list-subtitle {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.ios-list-chevron {
+  color: var(--ios-gray);
+  font-size: 14px;
+}
+
+/* Кнопки в стиле iOS */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 20px;
+  font-size: 17px;
+  font-weight: 600;
+  border-radius: var(--border-radius-md);
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: 100%;
+}
+
+.btn-primary {
+  background-color: var(--ios-blue);
+  color: white;
+}
+
+.btn-primary:active {
+  opacity: 0.7;
+}
+
+.btn-secondary {
+  background-color: var(--background-secondary);
+  color: var(--ios-blue);
+}
+
+.btn-secondary:active {
+  opacity: 0.7;
+}
+
+.btn-success {
+  background-color: var(--ios-green);
+  color: white;
+}
+
+.btn-danger {
+  background-color: var(--ios-red);
+  color: white;
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 2px solid var(--ios-blue);
+  color: var(--ios-blue);
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 15px;
+  width: auto;
+}
+
+.btn-large {
+  padding: 16px 24px;
+  font-size: 18px;
+}
+
+/* Поля ввода в стиле iOS */
+.input-group {
+  margin-bottom: 16px;
+}
+
+.input-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  display: block;
+}
+
+.ios-input {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 17px;
+  border: none;
+  border-radius: var(--border-radius-md);
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  outline: none;
+  transition: all 0.2s;
+}
+
+.ios-input:focus {
+  background-color: var(--background-secondary);
+  box-shadow: 0 0 0 2px var(--ios-blue);
+}
+
+.ios-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* Прогресс бары */
+.progress-bar {
+  width: 100%;
+  height: 8px;
+  background-color: var(--background-secondary);
+  border-radius: var(--border-radius-full);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--ios-blue), var(--ios-green));
+  border-radius: var(--border-radius-full);
+  transition: width 0.3s ease;
+}
+
+/* Бейджи и метки */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--border-radius-full);
+}
+
+.badge-primary {
+  background-color: var(--ios-blue);
+  color: white;
+}
+
+.badge-success {
+  background-color: var(--ios-green);
+  color: white;
+}
+
+.badge-warning {
+  background-color: var(--ios-orange);
+  color: white;
+}
+
+.badge-gray {
+  background-color: var(--ios-gray);
+  color: white;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.4s ease;
+}
+
+.animate-pulse {
+  animation: pulse 2s infinite;
+}
+
+/* Нижняя навигация (Tab Bar) */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 430px;
+  background-color: var(--background-primary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 0.5px solid var(--ios-separator);
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
+  display: flex;
+  justify-content: space-around;
+  z-index: 1000;
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 12px;
+  color: var(--ios-gray);
+  text-decoration: none;
+  transition: color 0.2s;
+  cursor: pointer;
+}
+
+.tab-item.active {
+  color: var(--ios-blue);
+}
+
+.tab-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.tab-label {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+/* Уведомления (Toast) */
+.toast {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background-color: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  color: white;
+  padding: 20px 30px;
+  border-radius: var(--border-radius-lg);
+  z-index: 2000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s;
+}
+
+.toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+/* Модальные окна в стиле iOS */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 1500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s;
+}
+
+.modal-overlay.show {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal {
+  background-color: var(--background-tertiary);
+  border-radius: var(--border-radius-lg);
+  width: 90%;
+  max-width: 340px;
+  max-height: 80vh;
+  overflow-y: auto;
+  transform: scale(0.9);
+  transition: transform 0.3s;
+}
+
+.modal-overlay.show .modal {
+  transform: scale(1);
+}
+
+.modal-header {
+  padding: 20px;
+  border-bottom: 0.5px solid var(--ios-separator);
+}
+
+.modal-title {
+  font-size: 17px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 0 20px 20px;
+  display: flex;
+  gap: 12px;
+}
+
+.modal-footer .btn {
+  flex: 1;
+}
+
+/* Экраны приложения */
+.screen {
+  display: none;
+}
+
+.screen.active {
+  display: block;
+}
+
+/* Стили для карточек слов */
+.flashcard {
+  perspective: 1000px;
+  width: 100%;
+  height: 300px;
+  cursor: pointer;
+}
+
+.flashcard-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.flashcard.flipped .flashcard-inner {
+  transform: rotateY(180deg);
+}
+
+.flashcard-front,
+.flashcard-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  border-radius: var(--border-radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-shadow: var(--shadow-md);
+}
+
+.flashcard-front {
+  background-color: var(--background-tertiary);
+}
+
+.flashcard-back {
+  background-color: var(--ios-blue);
+  color: white;
+  transform: rotateY(180deg);
+}
+
+.flashcard-word {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.flashcard-transcription {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.flashcard-translation {
+  font-size: 28px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.flashcard-example {
+  font-size: 14px;
+  text-align: center;
+  opacity: 0.9;
+}
+
+/* Чат с AI */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px);
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chat-message {
+  max-width: 80%;
+  padding: 12px 16px;
+  border-radius: var(--border-radius-lg);
+  line-height: 1.4;
+}
+
+.chat-message.user {
+  align-self: flex-end;
+  background-color: var(--ios-blue);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-message.ai {
+  align-self: flex-start;
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-input-container {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 0.5px solid var(--ios-separator);
+  background-color: var(--background-primary);
+}
+
+.chat-input {
+  flex: 1;
+  padding: 10px 16px;
+  border-radius: var(--border-radius-full);
+  border: 1px solid var(--ios-separator);
+  background-color: var(--background-secondary);
+  color: var(--text-primary);
+  font-size: 16px;
+  outline: none;
+}
+
+.chat-send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--ios-blue);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.chat-send-btn:active {
+  opacity: 0.7;
+}
+
+/* Статистика и достижения */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  background-color: var(--background-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ios-blue);
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.achievement-item {
+  background-color: var(--background-tertiary);
+  border-radius: var(--border-radius-md);
+  padding: 12px;
+  text-align: center;
+  opacity: 0.5;
+}
+
+.achievement-item.unlocked {
+  opacity: 1;
+}
+
+.achievement-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+}
+
+.achievement-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Загрузочные состояния */
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--background-secondary);
+  border-top-color: var(--ios-blue);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 40px auto;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 15px;
+  margin-top: 12px;
+}
+
+/* Адаптивность для iPad */
+@media (min-width: 768px) {
+  .app-container {
+    max-width: 768px;
+  }
+  
+  .tab-bar {
+    max-width: 768px;
+  }
+}

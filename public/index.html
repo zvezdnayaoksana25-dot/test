@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="English Master">
+  <meta name="theme-color" content="#007AFF">
+  <meta name="description" content="Приложение для изучения английского языка с AI-репетитором">
+  
+  <title>English Master PWA</title>
+  
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="/assets/icons/icon-192.png">
+  
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+  <div class="app-container" id="app">
+    <!-- Экран настройки API ключа -->
+    <div id="api-setup-screen" class="screen active">
+      <div class="nav-bar nav-bar-large">
+        <h1 class="nav-bar-title">English Master</h1>
+      </div>
+      
+      <div class="content">
+        <div class="card animate-slide-up">
+          <div style="text-align: center; padding: 20px 0;">
+            <div style="font-size: 64px; margin-bottom: 16px;">🎓</div>
+            <h2 style="font-size: 24px; font-weight: 700; margin-bottom: 8px;">Добро пожаловать!</h2>
+            <p style="color: var(--text-secondary); line-height: 1.5;">
+              Ваше персональное приложение для изучения английского языка с искусственным интеллектом
+            </p>
+          </div>
+        </div>
+        
+        <div class="card animate-slide-up" style="animation-delay: 0.1s;">
+          <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 12px;">Настройка AI репетитора</h3>
+          <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 16px; line-height: 1.4;">
+            Для работы AI-функций (диалоги, проверка упражнений, объяснения) необходим API ключ Groq. 
+            Ключ сохраняется только на вашем устройстве.
+          </p>
+          
+          <div class="input-group">
+            <label class="input-label">Groq API Key</label>
+            <input 
+              type="password" 
+              id="api-key-input" 
+              class="ios-input" 
+              placeholder="gsk_..."
+              autocomplete="off"
+            >
+          </div>
+          
+          <button class="btn btn-primary" id="save-api-key-btn">
+            Сохранить ключ
+          </button>
+          
+          <button class="btn btn-secondary" id="skip-api-key-btn" style="margin-top: 12px;">
+            Пропустить (без AI функций)
+          </button>
+          
+          <div style="margin-top: 20px; padding: 16px; background-color: var(--background-secondary); border-radius: 8px;">
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+              <strong>Как получить ключ:</strong>
+            </p>
+            <ol style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; padding-left: 20px;">
+              <li>Перейдите на <a href="https://console.groq.com" target="_blank" style="color: var(--ios-blue);">console.groq.com</a></li>
+              <li>Зарегистрируйтесь или войдите</li>
+              <li>Создайте API key в разделе "API Keys"</li>
+              <li>Скопируйте и вставьте ключ выше</li>
+            </ol>
+            <p style="font-size: 12px; color: var(--text-secondary); margin-top: 12px;">
+              💡 Бесплатный лимит: ~14 400 запросов в день
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Главный экран (Home) -->
+    <div id="home-screen" class="screen">
+      <div class="nav-bar nav-bar-large">
+        <h1 class="nav-bar-title">Главная</h1>
+      </div>
+      
+      <div class="content">
+        <!-- Приветствие и уровень -->
+        <div class="card" id="welcome-card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div>
+              <h2 style="font-size: 22px; font-weight: 700;" id="user-greeting">Привет! 👋</h2>
+              <p style="color: var(--text-secondary); font-size: 14px;" id="user-level-text">Уровень 1 • Новичок</p>
+            </div>
+            <div style="text-align: right;">
+              <div style="font-size: 32px;" id="level-badge">🎯</div>
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 8px;">
+            <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px;">
+              <span style="color: var(--text-secondary);">Прогресс до следующего уровня</span>
+              <span style="font-weight: 600;" id="xp-text">0/100 XP</span>
+            </div>
+            <div class="progress-bar">
+              <div class="progress-fill" id="xp-progress" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Статистика -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-value" id="streak-value">0</div>
+            <div class="stat-label">Дней подряд 🔥</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="words-value">0</div>
+            <div class="stat-label">Слов выучено 📚</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="lessons-value">0</div>
+            <div class="stat-label">Уроков пройдено ✅</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-value" id="xp-total-value">0</div>
+            <div class="stat-label">Всего XP ⭐</div>
+          </div>
+        </div>
+
+        <!-- Быстрые действия -->
+        <h3 style="font-size: 17px; font-weight: 600; margin: 24px 0 12px;">Быстрый старт</h3>
+        
+        <div class="ios-list">
+          <div class="ios-list-item" onclick="app.navigateTo('lessons')">
+            <div class="ios-list-icon" style="background-color: #007AFF20; color: #007AFF;">📖</div>
+            <div class="ios-list-content">
+              <div class="ios-list-title">Продолжить урок</div>
+              <div class="ios-list-subtitle">Знакомство и приветствия</div>
+            </div>
+            <div class="ios-list-chevron">›</div>
+          </div>
+          
+          <div class="ios-list-item" onclick="app.startWordReview()">
+            <div class="ios-list-icon" style="background-color: #34C75920; color: #34C759;">🃏</div>
+            <div class="ios-list-content">
+              <div class="ios-list-title">Повторить слова</div>
+              <div class="ios-list-subtitle" id="words-to-review">0 слов ждут повторения</div>
+            </div>
+            <div class="ios-list-chevron">›</div>
+          </div>
+          
+          <div class="ios-list-item" onclick="app.navigateTo('ai-tutor')">
+            <div class="ios-list-icon" style="background-color: #FF950020; color: #FF9500;">🤖</div>
+            <div class="ios-list-content">
+              <div class="ios-list-title">AI Репетитор</div>
+              <div class="ios-list-subtitle">Практика диалогов</div>
+            </div>
+            <div class="ios-list-chevron">›</div>
+          </div>
+        </div>
+
+        <!-- Достижения -->
+        <h3 style="font-size: 17px; font-weight: 600; margin: 24px 0 12px;">
+          Последние достижения
+          <a href="#" onclick="app.navigateTo('achievements')" style="color: var(--ios-blue); font-size: 14px; float: right;">Все</a>
+        </h3>
+        
+        <div class="achievements-grid" id="recent-achievements">
+          <!-- Заполняется динамически -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран уроков -->
+    <div id="lessons-screen" class="screen">
+      <div class="nav-bar">
+        <h1 class="nav-bar-title">Уроки</h1>
+      </div>
+      
+      <div class="content">
+        <!-- Выбор уровня -->
+        <div class="card">
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Выберите уровень</label>
+            <select id="level-select" class="ios-input" onchange="app.filterLessons()">
+              <option value="all">Все уровни</option>
+              <option value="A1">A1 - Beginner</option>
+              <option value="A2">A2 - Elementary</option>
+              <option value="B1">B1 - Intermediate</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Список уроков -->
+        <div id="lessons-list">
+          <!-- Заполняется динамически -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран урока -->
+    <div id="lesson-detail-screen" class="screen">
+      <div class="nav-bar">
+        <h1 class="nav-bar-title" id="lesson-detail-title">Урок</h1>
+      </div>
+      
+      <div class="content" id="lesson-detail-content">
+        <!-- Заполняется динамически -->
+      </div>
+    </div>
+
+    <!-- Экран слов (Flashcards) -->
+    <div id="vocabulary-screen" class="screen">
+      <div class="nav-bar">
+        <h1 class="nav-bar-title">Слова</h1>
+      </div>
+      
+      <div class="content">
+        <div class="card">
+          <div class="input-group" style="margin-bottom: 0;">
+            <label class="input-label">Категория</label>
+            <select id="vocab-category-select" class="ios-input" onchange="app.filterVocabulary()">
+              <option value="all">Все категории</option>
+              <option value="greetings">Приветствия</option>
+              <option value="basic">Базовые</option>
+              <option value="food_drink">Еда и напитки</option>
+              <option value="people">Люди</option>
+              <option value="places">Места</option>
+              <option value="verbs">Глаголы</option>
+              <option value="adjectives">Прилагательные</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="flashcard-container">
+          <!-- Карточки слов -->
+        </div>
+
+        <div style="display: flex; gap: 12px; margin-top: 20px;">
+          <button class="btn btn-danger" onclick="app.markCardIncorrect()">Не знаю</button>
+          <button class="btn btn-success" onclick="app.markCardCorrect()">Знаю</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран AI репетитора -->
+    <div id="ai-tutor-screen" class="screen">
+      <div class="nav-bar">
+        <h1 class="nav-bar-title">AI Репетитор</h1>
+      </div>
+      
+      <div class="chat-container">
+        <div class="chat-messages" id="chat-messages">
+          <div class="chat-message ai">
+            Привет! Я твой AI-репетитор по английскому языку. 
+            Давай поболтаем! О чем хочешь поговорить? 
+            Могу помочь с практикой диалогов, объяснить грамматику или проверить упражнение.
+          </div>
+        </div>
+        
+        <div class="chat-input-container">
+          <input 
+            type="text" 
+            id="chat-input" 
+            class="chat-input" 
+            placeholder="Напиши сообщение..."
+            onkeypress="if(event.key === 'Enter') app.sendMessage()"
+          >
+          <button class="chat-send-btn" onclick="app.sendMessage()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран достижений -->
+    <div id="achievements-screen" class="screen">
+      <div class="nav-bar">
+        <h1 class="nav-bar-title">Достижения</h1>
+      </div>
+      
+      <div class="content">
+        <div class="achievements-grid" id="all-achievements">
+          <!-- Все достижения -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Экран настроек -->
+    <div id="settings-screen" class="screen">
+      <div class="nav-bar">
+        <h1 class="nav-bar-title">Настройки</h1>
+      </div>
+      
+      <div class="content">
+        <div class="ios-list">
+          <div class="ios-list-item" onclick="app.showApiKeyModal()">
+            <div class="ios-list-icon" style="background-color: #007AFF20; color: #007AFF;">🔑</div>
+            <div class="ios-list-content">
+              <div class="ios-list-title">API Ключ Groq</div>
+              <div class="ios-list-subtitle" id="api-key-status">Не установлен</div>
+            </div>
+            <div class="ios-list-chevron">›</div>
+          </div>
+          
+          <div class="ios-list-item" onclick="app.resetProgress()">
+            <div class="ios-list-icon" style="background-color: #FF3B3020; color: #FF3B30;">🗑️</div>
+            <div class="ios-list-content">
+              <div class="ios-list-title">Сбросить прогресс</div>
+              <div class="ios-list-subtitle">Начать заново</div>
+            </div>
+            <div class="ios-list-chevron">›</div>
+          </div>
+          
+          <div class="ios-list-item" onclick="app.showAbout()">
+            <div class="ios-list-icon" style="background-color: #8E8E9320; color: #8E8E93;">ℹ️</div>
+            <div class="ios-list-content">
+              <div class="ios-list-title">О приложении</div>
+              <div class="ios-list-subtitle">Версия 1.0.0</div>
+            </div>
+            <div class="ios-list-chevron">›</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 32px; text-align: center;">
+          <p style="color: var(--text-secondary); font-size: 13px;">
+            English Master PWA © 2024<br>
+            Создано с ❤️ для изучения английского
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Нижняя навигация -->
+    <nav class="tab-bar" id="tab-bar" style="display: none;">
+      <div class="tab-item active" onclick="app.navigateTo('home')" data-tab="home">
+        <div class="tab-icon">🏠</div>
+        <div class="tab-label">Главная</div>
+      </div>
+      <div class="tab-item" onclick="app.navigateTo('lessons')" data-tab="lessons">
+        <div class="tab-icon">📖</div>
+        <div class="tab-label">Уроки</div>
+      </div>
+      <div class="tab-item" onclick="app.navigateTo('vocabulary')" data-tab="vocabulary">
+        <div class="tab-icon">🃏</div>
+        <div class="tab-label">Слова</div>
+      </div>
+      <div class="tab-item" onclick="app.navigateTo('ai-tutor')" data-tab="ai-tutor">
+        <div class="tab-icon">🤖</div>
+        <div class="tab-label">AI</div>
+      </div>
+      <div class="tab-item" onclick="app.navigateTo('settings')" data-tab="settings">
+        <div class="tab-icon">⚙️</div>
+        <div class="tab-label">Настройки</div>
+      </div>
+    </nav>
+
+    <!-- Toast уведомления -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Модальное окно для API ключа -->
+    <div class="modal-overlay" id="api-modal">
+      <div class="modal">
+        <div class="modal-header">
+          <h3 class="modal-title">API Ключ Groq</h3>
+        </div>
+        <div class="modal-body">
+          <div class="input-group">
+            <label class="input-label">Введите ваш API ключ</label>
+            <input 
+              type="password" 
+              id="modal-api-key-input" 
+              class="ios-input" 
+              placeholder="gsk_..."
+            >
+          </div>
+          <p style="font-size: 13px; color: var(--text-secondary); margin-top: 12px;">
+            Ключ сохраняется локально на вашем устройстве
+          </p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="app.closeApiModal()">Отмена</button>
+          <button class="btn btn-primary" onclick="app.saveApiKeyFromModal()">Сохранить</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Скрипты приложения -->
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>
