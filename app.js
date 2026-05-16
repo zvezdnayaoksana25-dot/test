@@ -1,20 +1,5 @@
 // ==================== DATA ====================
 
-const QUICK_PHRASES = [
-    { ru: "Привет! Как дела?", en: "Hi! How are you?" },
-    { ru: "Сколько вам лет?", en: "How old are you?" },
-    { ru: "Откуда вы?", en: "Where are you from?" },
-    { ru: "Мне нравится общаться с вами", en: "I enjoy talking with you" },
-    { ru: "Что вы хотите поговорить?", en: "What would you like to talk about?" },
-    { ru: "Вы очень интересный", en: "You are very interesting" },
-    { ru: "Давайте поговорим о чём-нибудь", en: "Let's talk about something" },
-    { ru: "Расскажите мне о себе", en: "Tell me about yourself" },
-    { ru: "Какая у вас работа?", en: "What do you do for work?" },
-    { ru: "У вас есть хобби?", en: "Do you have any hobbies?" },
-    { ru: "Спасибо за общение!", en: "Thank you for chatting!" },
-    { ru: "До свидания!", en: "Goodbye!" }
-];
-
 const DAY_NAMES = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
 const DAY_NAMES_FULL = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 const MONTH_NAMES = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
@@ -34,7 +19,8 @@ const state = {
     currentStatPeriod: 'week',
     calendarDate: new Date(),
     translateDir: 'ru-en',
-    timerInterval: null
+    timerInterval: null,
+    editingShiftId: null
 };
 
 // ==================== STORAGE ====================
@@ -168,7 +154,6 @@ const app = {
     init() {
         storage.load();
         this.loadSettingsUI();
-        this.renderQuickPhrases();
         this.renderTranslateHistory();
 
         if (state.activeShift && state.activeShift.startTime) {
@@ -182,6 +167,11 @@ const app = {
         document.getElementById('modal-earnings').addEventListener('input', function() {
             const usd = parseFloat(this.value) || 0;
             document.getElementById('modal-earnings-rub').textContent = `≈ ${fmtRUB(usd)}`;
+        });
+
+        document.getElementById('edit-earnings').addEventListener('input', function() {
+            const usd = parseFloat(this.value) || 0;
+            document.getElementById('edit-earnings-rub').textContent = `≈ ${fmtRUB(usd)}`;
         });
 
         this.updateTimerDisplay();
@@ -282,6 +272,64 @@ const app = {
         this.renderHistory();
     },
 
+    // --- EDIT SHIFT ---
+    editShift(id) {
+        const shift = state.shifts.find(s => s.id === id);
+        if (!shift) return;
+
+        state.editingShiftId = id;
+
+        document.getElementById('edit-date').value = shift.date;
+        document.getElementById('edit-start').value = shift.start;
+        document.getElementById('edit-end').value = shift.end;
+        document.getElementById('edit-earnings').value = shift.earningsUSD;
+        document.getElementById('edit-comment').value = shift.comment || '';
+        document.getElementById('edit-earnings-rub').textContent = `≈ ${fmtRUB(shift.earningsUSD)}`;
+
+        document.getElementById('modal-edit-shift').classList.remove('hidden');
+    },
+
+    cancelEditShift() {
+        document.getElementById('modal-edit-shift').classList.add('hidden');
+        state.editingShiftId = null;
+    },
+
+    saveEditShift() {
+        const shift = state.shifts.find(s => s.id === state.editingShiftId);
+        if (!shift) return;
+
+        const newDate = document.getElementById('edit-date').value;
+        const newStart = document.getElementById('edit-start').value;
+        const newEnd = document.getElementById('edit-end').value;
+        const newEarnings = parseFloat(document.getElementById('edit-earnings').value) || 0;
+        const newComment = document.getElementById('edit-comment').value.trim();
+
+        if (newDate) shift.date = newDate;
+        if (newStart) shift.start = newStart;
+        if (newEnd) shift.end = newEnd;
+
+        if (newStart && newEnd) {
+            const [sh, sm] = newStart.split(':').map(Number);
+            const [eh, em] = newEnd.split(':').map(Number);
+            const startMin = sh * 60 + sm;
+            const endMin = eh * 60 + em;
+            let diffMin = endMin - startMin;
+            if (diffMin < 0) diffMin += 24 * 60;
+            shift.durationMs = diffMin * 60000;
+        }
+
+        shift.earningsUSD = newEarnings;
+        shift.comment = newComment;
+
+        storage.save();
+        document.getElementById('modal-edit-shift').classList.add('hidden');
+        state.editingShiftId = null;
+
+        this.renderHistory();
+        this.updateHome();
+        this.renderStats();
+    },
+
     // --- HOME ---
     updateHome() {
         const today = getTodayShifts();
@@ -368,7 +416,10 @@ const app = {
                         <div class="shift-rub">${fmtRUB(s.earningsUSD)}</div>
                         <div class="shift-duration">${fmtShort(s.durationMs)}</div>
                     </div>
-                    <button class="shift-delete" onclick="app.deleteShift('${s.id}')">✕</button>
+                    <div class="shift-actions">
+                        <button class="shift-edit-btn" onclick="app.editShift('${s.id}')">✏️</button>
+                        <button class="shift-delete-btn" onclick="app.deleteShift('${s.id}')">🗑</button>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -606,7 +657,7 @@ const app = {
         ctx.fillStyle = lineColor;
         points.forEach(p => {
             ctx.beginPath();
-            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
             ctx.fill();
         });
 
@@ -760,27 +811,6 @@ const app = {
         });
     },
 
-    renderQuickPhrases() {
-        const container = document.getElementById('phrases-list');
-        container.innerHTML = QUICK_PHRASES.map(p => `
-            <button class="phrase-btn" onclick="app.usePhrase('${this.escapeJs(p.ru)}', '${this.escapeJs(p.en)}')">
-                ${p.ru}
-                <div class="phrase-translation">${p.en}</div>
-            </button>
-        `).join('');
-    },
-
-    usePhrase(ru, en) {
-        if (state.translateDir === 'ru-en') {
-            document.getElementById('translate-input').value = ru;
-        } else {
-            document.getElementById('translate-input').value = en;
-        }
-        document.getElementById('translate-output').textContent = state.translateDir === 'ru-en' ? en : ru;
-        document.getElementById('translate-output').classList.remove('hidden');
-        document.getElementById('btn-copy-translate').classList.remove('hidden');
-    },
-
     renderTranslateHistory() {
         const section = document.getElementById('translate-history-section');
         const container = document.getElementById('translate-history');
@@ -882,10 +912,6 @@ const app = {
         const div = document.createElement('div');
         div.textContent = str;
         return div.innerHTML;
-    },
-
-    escapeJs(str) {
-        return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"');
     }
 };
 
