@@ -537,7 +537,7 @@ const app = {
 
         const data = this.getChartData(shifts, 'hours');
         if (data.length === 0) {
-            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-sec');
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
             ctx.font = '14px -apple-system';
             ctx.textAlign = 'center';
             ctx.fillText('Нет данных', w / 2, h / 2);
@@ -552,8 +552,10 @@ const app = {
 
         ctx.clearRect(0, 0, w, h);
 
-        const textColor = getComputedStyle(document.body).getPropertyValue('--text-sec') || '#8E8E93';
-        const barColor = '#007AFF';
+        const textColor = getComputedStyle(document.body).getPropertyValue('--text-sec') || 'rgba(255,255,255,0.55)';
+        const barGradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+        barGradient.addColorStop(0, '#00E5FF');
+        barGradient.addColorStop(1, '#8B5CF6');
 
         ctx.fillStyle = textColor;
         ctx.font = '10px -apple-system';
@@ -563,7 +565,7 @@ const app = {
             const y = pad.top + chartH - (i / 4) * chartH;
             const val = (i / 4) * maxVal;
             ctx.fillText(val.toFixed(1) + 'ч', pad.left - 4, y + 4);
-            ctx.strokeStyle = 'rgba(142,142,147,0.2)';
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
             ctx.beginPath();
             ctx.moveTo(pad.left, y);
             ctx.lineTo(w - pad.right, y);
@@ -575,7 +577,7 @@ const app = {
             const barH = (d.value / maxVal) * chartH;
             const y = pad.top + chartH - barH;
 
-            ctx.fillStyle = barColor;
+            ctx.fillStyle = barGradient;
             ctx.beginPath();
             const r = Math.min(barW / 2, 4);
             ctx.moveTo(x - barW / 2, pad.top + chartH);
@@ -608,7 +610,7 @@ const app = {
 
         const data = this.getChartData(shifts, 'earnings');
         if (data.length === 0) {
-            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-sec');
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
             ctx.font = '14px -apple-system';
             ctx.textAlign = 'center';
             ctx.fillText('Нет данных', w / 2, h / 2);
@@ -621,8 +623,8 @@ const app = {
 
         ctx.clearRect(0, 0, w, h);
 
-        const textColor = getComputedStyle(document.body).getPropertyValue('--text-sec') || '#8E8E93';
-        const lineColor = '#34C759';
+        const textColor = getComputedStyle(document.body).getPropertyValue('--text-sec') || 'rgba(255,255,255,0.55)';
+        const lineColor = '#00FFA3';
 
         ctx.fillStyle = textColor;
         ctx.font = '10px -apple-system';
@@ -632,7 +634,7 @@ const app = {
             const y = pad.top + chartH - (i / 4) * chartH;
             const val = (i / 4) * maxVal;
             ctx.fillText('$' + Math.round(val), pad.left - 4, y + 4);
-            ctx.strokeStyle = 'rgba(142,142,147,0.2)';
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
             ctx.beginPath();
             ctx.moveTo(pad.left, y);
             ctx.lineTo(w - pad.right, y);
