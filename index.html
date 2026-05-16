@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>WorkTracker</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="style.css">
     <meta name="theme-color" content="#8B5CF6">
@@ -17,23 +18,16 @@
         <!-- 🏠 ГЛАВНАЯ -->
         <div id="screen-home" class="screen active">
             <div class="safe-top"></div>
-            <header class="screen-header">
-                <h1>WorkTracker</h1>
-            </header>
             <div class="scroll-content">
                 <div class="timer-section">
                     <button id="btn-timer" class="btn-timer btn-start" onclick="app.toggleTimer()">
-                        ▶ Начать смену
+                        Начать смену
                     </button>
                     <div id="timer-display" class="timer-display">00:00:00</div>
                     <div id="timer-status" class="timer-status hidden">Смена активна</div>
                 </div>
 
                 <div class="card today-summary">
-                    <div class="summary-row">
-                        <span class="summary-label">Смен сегодня</span>
-                        <span id="today-shifts" class="summary-value">0</span>
-                    </div>
                     <div class="summary-row">
                         <span class="summary-label">Время сегодня</span>
                         <span id="today-hours" class="summary-value">0ч 0м</span>
@@ -53,11 +47,6 @@
                         <div id="goal-progress" class="progress-bar-fill" style="width: 0%"></div>
                     </div>
                     <div id="goal-remaining" class="goal-remaining">Осталось: $0</div>
-                </div>
-
-                <div class="card weekly-bars">
-                    <div class="section-title">Последние 7 дней</div>
-                    <div id="weekly-bars" class="weekly-bars-container"></div>
                 </div>
             </div>
         </div>

@@ -1,7 +1,7 @@
 // ==================== DATA ====================
 
-const DAY_NAMES = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
-const DAY_NAMES_FULL = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
+const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+const DAY_NAMES_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
 const MONTH_NAMES = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
 // ==================== STATE ====================
@@ -20,7 +20,9 @@ const state = {
     calendarDate: new Date(),
     translateDir: 'ru-en',
     timerInterval: null,
-    editingShiftId: null
+    editingShiftId: null,
+    frozenElapsed: null,
+    swipedCardId: null
 };
 
 // ==================== STORAGE ====================
@@ -148,6 +150,116 @@ function getMonthlyEarnings() {
         .reduce((sum, s) => sum + s.earningsUSD, 0);
 }
 
+// ==================== SWIPE ====================
+
+const swipe = {
+    startX: 0,
+    startY: 0,
+    currentX: 0,
+    isDragging: false,
+    activeWrapper: null,
+
+    init() {
+        const list = document.getElementById('shifts-list');
+        if (!list) return;
+
+        list.addEventListener('touchstart', (e) => this.onStart(e), { passive: false });
+        list.addEventListener('touchmove', (e) => this.onMove(e), { passive: false });
+        list.addEventListener('touchend', (e) => this.onEnd(e));
+        list.addEventListener('click', (e) => this.onClick(e));
+    },
+
+    onStart(e) {
+        const card = e.target.closest('.shift-card');
+        if (!card) return;
+
+        const wrapper = card.closest('.shift-card-wrapper');
+        if (!wrapper) return;
+
+        const touch = e.touches[0];
+        this.startX = touch.clientX;
+        this.startY = touch.clientY;
+        this.currentX = 0;
+        this.isDragging = true;
+        this.activeWrapper = wrapper;
+
+        card.classList.add('swiping');
+
+        if (state.swipedCardId && state.swipedCardId !== wrapper.dataset.shiftId) {
+            this.closeSwiped();
+        }
+    },
+
+    onMove(e) {
+        if (!this.isDragging || !this.activeWrapper) return;
+
+        const touch = e.touches[0];
+        const dx = touch.clientX - this.startX;
+        const dy = touch.clientY - this.startY;
+
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5) {
+            e.preventDefault();
+        }
+
+        this.currentX = Math.max(-100, Math.min(100, dx));
+        const card = this.activeWrapper.querySelector('.shift-card');
+        if (card) {
+            card.style.transform = `translateX(${this.currentX}px)`;
+        }
+    },
+
+    onEnd(e) {
+        if (!this.isDragging || !this.activeWrapper) return;
+
+        const card = this.activeWrapper.querySelector('.shift-card');
+        if (!card) return;
+
+        card.classList.remove('swiping');
+
+        if (this.currentX > 80) {
+            card.style.transform = 'translateX(100px)';
+            state.swipedCardId = this.activeWrapper.dataset.shiftId;
+        } else if (this.currentX < -80) {
+            card.style.transform = 'translateX(-100px)';
+            state.swipedCardId = this.activeWrapper.dataset.shiftId;
+        } else {
+            card.style.transform = 'translateX(0)';
+            if (state.swipedCardId === this.activeWrapper.dataset.shiftId) {
+                state.swipedCardId = null;
+            }
+        }
+
+        this.isDragging = false;
+        this.activeWrapper = null;
+        this.currentX = 0;
+    },
+
+    onClick(e) {
+        const btn = e.target.closest('.swipe-action-btn');
+        if (btn) {
+            const id = btn.dataset.id;
+            const action = btn.dataset.action;
+            if (action === 'edit') app.editShift(id);
+            if (action === 'delete') app.deleteShift(id);
+            this.closeSwiped();
+            return;
+        }
+
+        const wrapper = e.target.closest('.shift-card-wrapper');
+        if (wrapper && state.swipedCardId) {
+            this.closeSwiped();
+        }
+    },
+
+    closeSwiped() {
+        const prev = document.querySelector(`.shift-card-wrapper[data-shift-id="${state.swipedCardId}"] .shift-card`);
+        if (prev) {
+            prev.style.transform = 'translateX(0)';
+        }
+        state.swipedCardId = null;
+    }
+};
+
 // ==================== APP ====================
 
 const app = {
@@ -176,6 +288,8 @@ const app = {
 
         this.updateTimerDisplay();
         state.timerInterval = setInterval(() => app.updateTimerDisplay(), 1000);
+
+        swipe.init();
     },
 
     // --- TAB NAVIGATION ---
@@ -205,7 +319,7 @@ const app = {
     startTimerUI(resumed) {
         const btn = document.getElementById('btn-timer');
         btn.className = 'btn-timer btn-stop';
-        btn.innerHTML = '⏹ Остановить';
+        btn.innerHTML = 'Остановить';
         document.getElementById('timer-status').classList.remove('hidden');
         if (!resumed) {
             btn.style.animation = 'none';
@@ -216,11 +330,15 @@ const app = {
     stopTimerUI() {
         const btn = document.getElementById('btn-timer');
         btn.className = 'btn-timer btn-start';
-        btn.innerHTML = '▶ Начать смену';
+        btn.innerHTML = 'Начать смену';
         document.getElementById('timer-status').classList.add('hidden');
     },
 
     updateTimerDisplay() {
+        if (state.frozenElapsed !== null) {
+            document.getElementById('timer-display').textContent = fmt(state.frozenElapsed);
+            return;
+        }
         if (state.activeShift && state.activeShift.startTime) {
             const elapsed = Date.now() - state.activeShift.startTime;
             document.getElementById('timer-display').textContent = fmt(elapsed);
@@ -230,8 +348,8 @@ const app = {
     },
 
     showEndShiftModal() {
-        const elapsed = Date.now() - state.activeShift.startTime;
-        document.getElementById('modal-duration').textContent = fmtShort(elapsed);
+        state.frozenElapsed = Date.now() - state.activeShift.startTime;
+        document.getElementById('modal-duration').textContent = fmtShort(state.frozenElapsed);
         document.getElementById('modal-earnings').value = '';
         document.getElementById('modal-comment').value = '';
         document.getElementById('modal-earnings-rub').textContent = '≈ ₽0';
@@ -239,6 +357,7 @@ const app = {
     },
 
     cancelEndShift() {
+        state.frozenElapsed = null;
         document.getElementById('modal-end-shift').classList.add('hidden');
     },
 
@@ -264,6 +383,7 @@ const app = {
 
         state.shifts.unshift(shift);
         state.activeShift = null;
+        state.frozenElapsed = null;
         storage.save();
 
         this.stopTimerUI();
@@ -277,6 +397,7 @@ const app = {
         const shift = state.shifts.find(s => s.id === id);
         if (!shift) return;
 
+        swipe.closeSwiped();
         state.editingShiftId = id;
 
         document.getElementById('edit-date').value = shift.date;
@@ -333,7 +454,6 @@ const app = {
     // --- HOME ---
     updateHome() {
         const today = getTodayShifts();
-        document.getElementById('today-shifts').textContent = today.length;
         document.getElementById('today-hours').textContent = fmtShort(getTotalMs(today));
         document.getElementById('today-earnings').textContent = fmtMoney(getTotalUSD(today));
 
@@ -346,38 +466,6 @@ const app = {
         document.getElementById('goal-remaining').textContent = monthly >= goal
             ? '✅ Цель достигнута!'
             : `Осталось: ${fmtUSD(goal - monthly)}`;
-
-        this.renderWeeklyBars();
-    },
-
-    renderWeeklyBars() {
-        const container = document.getElementById('weekly-bars');
-        const days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            const dateStr = d.toISOString().slice(0, 10);
-            const dayShifts = state.shifts.filter(s => s.date === dateStr);
-            const hours = getTotalMs(dayShifts) / 3600000;
-            days.push({
-                label: DAY_NAMES[d.getDay()],
-                hours,
-                isToday: i === 0
-            });
-        }
-
-        const maxHours = Math.max(...days.map(d => d.hours), 1);
-
-        container.innerHTML = days.map(d => {
-            const h = Math.max((d.hours / maxHours) * 60, 4);
-            const filled = d.hours > 0 ? 'filled' : '';
-            return `
-                <div class="weekly-bar-item">
-                    <div class="weekly-bar ${filled}" style="height:${h}px"></div>
-                    <span class="weekly-bar-label">${d.label}</span>
-                </div>
-            `;
-        }).join('');
     },
 
     // --- HISTORY ---
@@ -405,20 +493,24 @@ const app = {
             const dayName = DAY_NAMES_FULL[dateObj.getDay()];
             const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
             return `
-                <div class="shift-card" id="shift-${s.id}">
-                    <div class="shift-info">
-                        <div class="shift-date">${dateStr}, ${dayName}</div>
-                        <div class="shift-time">${s.start} → ${s.end}</div>
-                        ${s.comment ? `<div class="shift-comment">${this.escapeHtml(s.comment)}</div>` : ''}
+                <div class="shift-card-wrapper" data-shift-id="${s.id}">
+                    <div class="shift-actions-bg left">
+                        <button class="swipe-action-btn delete" data-action="delete" data-id="${s.id}">🗑</button>
                     </div>
-                    <div class="shift-earnings">
-                        <div class="shift-usd">${fmtUSD(s.earningsUSD)}</div>
-                        <div class="shift-rub">${fmtRUB(s.earningsUSD)}</div>
-                        <div class="shift-duration">${fmtShort(s.durationMs)}</div>
+                    <div class="shift-actions-bg right">
+                        <button class="swipe-action-btn edit" data-action="edit" data-id="${s.id}">✏️</button>
                     </div>
-                    <div class="shift-actions">
-                        <button class="shift-edit-btn" onclick="app.editShift('${s.id}')">✏️</button>
-                        <button class="shift-delete-btn" onclick="app.deleteShift('${s.id}')">🗑</button>
+                    <div class="shift-card" data-shift-id="${s.id}">
+                        <div class="shift-info">
+                            <div class="shift-date">${dateStr}, ${dayName}</div>
+                            <div class="shift-time">${s.start} → ${s.end}</div>
+                            ${s.comment ? `<div class="shift-comment">${this.escapeHtml(s.comment)}</div>` : ''}
+                        </div>
+                        <div class="shift-earnings">
+                            <div class="shift-usd">${fmtUSD(s.earningsUSD)}</div>
+                            <div class="shift-rub">${fmtRUB(s.earningsUSD)}</div>
+                            <div class="shift-duration">${fmtShort(s.durationMs)}</div>
+                        </div>
                     </div>
                 </div>
             `;
@@ -428,6 +520,8 @@ const app = {
         const totalUSD = getTotalUSD(filtered);
         document.getElementById('summary-total').textContent = `${fmtShort(totalMs)} | ${fmtMoney(totalUSD)}`;
         summaryEl.classList.remove('hidden');
+
+        setTimeout(() => swipe.init(), 0);
     },
 
     deleteShift(id) {
@@ -460,11 +554,11 @@ const app = {
 
         document.getElementById('stats-metrics').innerHTML = `
             <div class="metric-card">
-                <div class="metric-value blue">${shifts.length}</div>
+                <div class="metric-value">${shifts.length}</div>
                 <div class="metric-label">Всего смен</div>
             </div>
             <div class="metric-card">
-                <div class="metric-value">${fmtShort(totalMs)}</div>
+                <div class="metric-value cyan">${fmtShort(totalMs)}</div>
                 <div class="metric-label">Всего часов</div>
             </div>
             <div class="metric-card full-width">
@@ -538,7 +632,7 @@ const app = {
         const data = this.getChartData(shifts, 'hours');
         if (data.length === 0) {
             ctx.fillStyle = 'rgba(255,255,255,0.55)';
-            ctx.font = '14px -apple-system';
+            ctx.font = '14px Inter, -apple-system';
             ctx.textAlign = 'center';
             ctx.fillText('Нет данных', w / 2, h / 2);
             return;
@@ -552,13 +646,13 @@ const app = {
 
         ctx.clearRect(0, 0, w, h);
 
-        const textColor = getComputedStyle(document.body).getPropertyValue('--text-sec') || 'rgba(255,255,255,0.55)';
+        const textColor = 'rgba(255,255,255,0.55)';
         const barGradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
         barGradient.addColorStop(0, '#00E5FF');
         barGradient.addColorStop(1, '#8B5CF6');
 
         ctx.fillStyle = textColor;
-        ctx.font = '10px -apple-system';
+        ctx.font = '10px Inter, -apple-system';
         ctx.textAlign = 'right';
 
         for (let i = 0; i <= 4; i++) {
@@ -590,7 +684,7 @@ const app = {
 
             ctx.fillStyle = textColor;
             ctx.textAlign = 'center';
-            ctx.font = '9px -apple-system';
+            ctx.font = '9px Inter, -apple-system';
             ctx.fillText(d.label, x, h - 8);
         });
     },
@@ -611,7 +705,7 @@ const app = {
         const data = this.getChartData(shifts, 'earnings');
         if (data.length === 0) {
             ctx.fillStyle = 'rgba(255,255,255,0.55)';
-            ctx.font = '14px -apple-system';
+            ctx.font = '14px Inter, -apple-system';
             ctx.textAlign = 'center';
             ctx.fillText('Нет данных', w / 2, h / 2);
             return;
@@ -623,11 +717,11 @@ const app = {
 
         ctx.clearRect(0, 0, w, h);
 
-        const textColor = getComputedStyle(document.body).getPropertyValue('--text-sec') || 'rgba(255,255,255,0.55)';
+        const textColor = 'rgba(255,255,255,0.55)';
         const lineColor = '#00FFA3';
 
         ctx.fillStyle = textColor;
-        ctx.font = '10px -apple-system';
+        ctx.font = '10px Inter, -apple-system';
         ctx.textAlign = 'right';
 
         for (let i = 0; i <= 4; i++) {
@@ -665,7 +759,7 @@ const app = {
 
         ctx.fillStyle = textColor;
         ctx.textAlign = 'center';
-        ctx.font = '9px -apple-system';
+        ctx.font = '9px Inter, -apple-system';
         const step = Math.max(1, Math.floor(data.length / 7));
         data.forEach((d, i) => {
             if (i % step === 0 || i === data.length - 1) {
@@ -710,7 +804,7 @@ const app = {
         const grid = document.getElementById('calendar-grid');
         let html = DAY_NAMES.map(d => `<div class="cal-day-header">${d}</div>`).join('');
 
-        const firstDay = new Date(year, month, 1).getDay();
+        const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
         for (let i = 0; i < firstDay; i++) {
