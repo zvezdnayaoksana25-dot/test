@@ -259,6 +259,17 @@
             </div>
         </div>
 
+        <!-- МОДАЛЬНОЕ ОКНО СТАТИСТИКИ ДНЯ -->
+        <div id="modal-day-stats" class="modal-overlay modal-center hidden" onclick="app.closeDayStats(event)">
+            <div class="modal-card modal-card-center" onclick="event.stopPropagation()">
+                <div class="modal-day-header">
+                    <h2 id="day-stats-title">День</h2>
+                    <button class="btn-close-modal" onclick="app.closeDayStats()">✕</button>
+                </div>
+                <div id="day-stats-content"></div>
+            </div>
+        </div>
+
         <!-- ТАБ-БАР -->
         <nav id="tab-bar" class="tab-bar">
             <button class="tab-btn active" data-tab="home" onclick="app.switchTab('home')">

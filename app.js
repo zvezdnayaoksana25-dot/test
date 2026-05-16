@@ -1030,15 +1030,17 @@ const app = {
             const isToday = dateStr === today;
             const hours = hoursByDay[dateStr] || 0;
             let levelClass = '';
+            let dotHtml = '';
             if (hours > 0) {
                 let level = 1;
                 if (hours >= 2) level = 2;
                 if (hours >= 4) level = 3;
                 if (hours >= 6) level = 4;
                 levelClass = `worked level-${level}`;
+                dotHtml = `<span class="work-dot"></span>`;
             }
 
-            html += `<div class="cal-day ${isToday ? 'today' : ''} ${levelClass}">${day}</div>`;
+            html += `<div class="cal-day ${isToday ? 'today' : ''} ${levelClass}" onclick="app.showDayStats('${dateStr}')"><span>${day}</span>${dotHtml}</div>`;
         }
 
         grid.innerHTML = html;
@@ -1047,6 +1049,63 @@ const app = {
     calNav(dir) {
         state.calendarDate.setMonth(state.calendarDate.getMonth() + dir);
         this.renderCalendar();
+    },
+
+    showDayStats(dateStr) {
+        const dayShifts = state.shifts.filter(s => s.date === dateStr);
+        const dateObj = new Date(dateStr + 'T00:00:00');
+        const dayName = DAY_NAMES_FULL[dateObj.getDay()];
+        const dateDisplay = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        document.getElementById('day-stats-title').textContent = dateDisplay;
+
+        const content = document.getElementById('day-stats-content');
+
+        if (dayShifts.length === 0) {
+            content.innerHTML = `<div class="day-stats-no-shifts">Нет смен за этот день</div>`;
+        } else {
+            const totalMs = getTotalMs(dayShifts);
+            const totalUSD = getTotalUSD(dayShifts);
+            const totalHours = totalMs / 3600000;
+            const ratePerHour = totalHours > 0 ? totalUSD / totalHours : 0;
+
+            let shiftsHtml = dayShifts.map(s => `
+                <div class="day-shift-item">
+                    <div class="day-shift-time">${s.start} → ${s.end}</div>
+                    <div class="day-shift-detail">
+                        <span>${fmtShort(s.durationMs)}</span>
+                        <span style="color: var(--success); font-weight: 600;">${fmtMoney(s.earningsUSD)}</span>
+                    </div>
+                    ${s.comment ? `<div class="day-shift-comment">${this.escapeHtml(s.comment)}</div>` : ''}
+                </div>
+            `).join('');
+
+            content.innerHTML = `
+                <div class="card" style="margin-bottom: 0;">
+                    <div class="summary-row">
+                        <span class="summary-label">Смен</span>
+                        <span class="summary-value">${dayShifts.length}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Часов</span>
+                        <span class="summary-value" style="color: var(--secondary);">${fmtShort(totalMs)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Заработок</span>
+                        <span class="summary-value" style="color: var(--success);">${fmtMoney(totalUSD)}</span>
+                    </div>
+                </div>
+                <div class="day-stats-rate">$${ratePerHour.toFixed(2)} / час</div>
+                <div class="day-shifts-list">${shiftsHtml}</div>
+            `;
+        }
+
+        document.getElementById('modal-day-stats').classList.remove('hidden');
+    },
+
+    closeDayStats(e) {
+        if (e && e.target !== e.currentTarget) return;
+        document.getElementById('modal-day-stats').classList.add('hidden');
     },
 
     // --- TRANSLATOR ---

@@ -592,6 +592,25 @@ body {
     font-weight: 700;
 }
 
+.cal-day:not(.empty) {
+    cursor: pointer;
+    flex-direction: column;
+    gap: 3px;
+    transition: background 0.15s;
+}
+
+.cal-day:not(.empty):active {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.cal-day .work-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: #00FFA3;
+    box-shadow: 0 0 6px rgba(0, 255, 163, 0.7), 0 0 12px rgba(0, 255, 163, 0.3);
+}
+
 .cal-day.worked {
     color: #fff;
     font-weight: 600;
@@ -601,6 +620,7 @@ body {
 .cal-day.worked.level-2 { background: #005F73; }
 .cal-day.worked.level-3 { background: #0A9396; }
 .cal-day.worked.level-4 { background: #00FFA3; color: #000; }
+.cal-day.worked.level-4 .work-dot { background: #000; box-shadow: none; }
 
 /* ===== TRANSLATOR ===== */
 
@@ -1068,6 +1088,109 @@ body {
 
 .hidden {
     display: none !important;
+}
+
+/* ===== CENTERED MODAL ===== */
+
+.modal-overlay.modal-center {
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-card-center {
+    max-height: 80vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+}
+
+.modal-day-header h2 {
+    margin-bottom: 0;
+}
+
+.btn-close-modal {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 1px solid var(--card-border);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-sec);
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-close-modal:active {
+    background: rgba(255, 46, 99, 0.2);
+    color: var(--danger);
+}
+
+.day-stats-no-shifts {
+    text-align: center;
+    padding: 30px 0;
+    color: var(--text-sec);
+    font-size: 15px;
+}
+
+.day-shifts-list {
+    margin-top: 16px;
+}
+
+.day-shift-item {
+    background: rgba(20, 20, 28, 0.5);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+
+.day-shift-item:last-child {
+    margin-bottom: 0;
+}
+
+.day-shift-time {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--secondary);
+    margin-bottom: 4px;
+}
+
+.day-shift-detail {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--text-sec);
+    margin-top: 2px;
+}
+
+.day-shift-comment {
+    font-size: 12px;
+    color: var(--text-sec);
+    font-style: italic;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--card-border);
+}
+
+.day-stats-rate {
+    text-align: center;
+    font-size: 14px;
+    color: var(--success);
+    font-weight: 600;
+    margin-top: 12px;
+    padding: 10px;
+    background: rgba(0, 255, 163, 0.06);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 255, 163, 0.15);
 }
 
 .scroll-content::-webkit-scrollbar {
