@@ -272,7 +272,7 @@ const app = {
                         { role: "system", content: "You are a friendly English teacher. Correct mistakes gently and keep conversation simple." },
                         { role: "user", content: msg }
                     ],
-                    model: "llama3-8b-8192",
+                    model: "llama3-8b",
                     temperature: 0.7,
                     max_tokens: 100
                 })
