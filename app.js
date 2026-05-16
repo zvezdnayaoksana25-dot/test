@@ -18,11 +18,13 @@ const state = {
     currentFilter: 'today',
     currentStatPeriod: 'week',
     calendarDate: new Date(),
-    translateDir: 'ru-en',
+    translateDir: 'auto-en',
     timerInterval: null,
     editingShiftId: null,
     frozenElapsed: null,
-    swipedCardId: null
+    swipedCardId: null,
+    voiceRecording: false,
+    recognition: null
 };
 
 // ==================== STORAGE ====================
@@ -130,6 +132,26 @@ function getShiftsForStatPeriod(period) {
     return state.shifts;
 }
 
+function getPrevPeriodShifts(period) {
+    const now = new Date();
+    if (period === 'week') {
+        const end = new Date(now);
+        end.setDate(end.getDate() - 7);
+        const start = new Date(end);
+        start.setDate(start.getDate() - 7);
+        return state.shifts.filter(s => {
+            const d = new Date(s.date);
+            return d >= start && d < end;
+        });
+    }
+    if (period === 'month') {
+        const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const monthStr = prevMonth.toISOString().slice(0, 7);
+        return state.shifts.filter(s => s.date.slice(0, 7) === monthStr);
+    }
+    return [];
+}
+
 function getTotalMs(shifts) {
     return shifts.reduce((sum, s) => sum + s.durationMs, 0);
 }
@@ -149,6 +171,41 @@ function getMonthlyEarnings() {
         .filter(s => s.date.slice(0, 7) === monthStr)
         .reduce((sum, s) => sum + s.earningsUSD, 0);
 }
+
+function comparisonHtml(current, previous, type) {
+    if (previous === 0 || previous === null || previous === undefined) return '';
+    const pct = ((current - previous) / previous) * 100;
+    const rounded = Math.abs(pct).toFixed(0);
+    if (rounded < 1) return `<div class="comparison-badge neutral">— 0%</div>`;
+    if (pct > 0) return `<div class="comparison-badge up">↑ +${rounded}%</div>`;
+    return `<div class="comparison-badge down">↓ -${rounded}%</div>`;
+}
+
+// ==================== CURRENCY API ====================
+
+const currencyApi = {
+    async fetchRate() {
+        try {
+            const resp = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data = await resp.json();
+            if (data && data.rates && data.rates.RUB) {
+                const rate = Math.round(data.rates.RUB * 100) / 100;
+                state.settings.currencyRate = rate;
+                storage.save();
+                return rate;
+            }
+        } catch(e) {}
+        return null;
+    },
+
+    updateUI() {
+        const rate = state.settings.currencyRate;
+        const display = document.getElementById('setting-rate-display');
+        const desc = document.getElementById('setting-rate-desc');
+        if (display) display.textContent = `${rate} ₽`;
+        if (desc) desc.textContent = `1$ = ${rate} ₽ (авто)`;
+    }
+};
 
 // ==================== SWIPE ====================
 
@@ -260,6 +317,72 @@ const swipe = {
     }
 };
 
+// ==================== VOICE INPUT ====================
+
+const voiceInput = {
+    init() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            const btn = document.getElementById('btn-voice');
+            if (btn) {
+                btn.style.opacity = '0.3';
+                btn.title = 'Голосовой ввод не поддерживается';
+            }
+            return;
+        }
+
+        state.recognition = new SpeechRecognition();
+        state.recognition.interimResults = true;
+        state.recognition.continuous = true;
+        state.recognition.maxAlternatives = 1;
+
+        state.recognition.onresult = (e) => {
+            let finalTranscript = '';
+            let interimTranscript = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+                if (e.results[i].isFinal) {
+                    finalTranscript += e.results[i][0].transcript;
+                } else {
+                    interimTranscript += e.results[i][0].transcript;
+                }
+            }
+            const input = document.getElementById('translate-input');
+            if (finalTranscript) {
+                input.value += finalTranscript;
+            }
+        };
+
+        state.recognition.onerror = () => {
+            this.stop();
+        };
+
+        state.recognition.onend = () => {
+            if (state.voiceRecording) {
+                try { state.recognition.start(); } catch(e) {}
+            }
+        };
+    },
+
+    start() {
+        if (!state.recognition) return;
+        state.voiceRecording = true;
+        try {
+            state.recognition.lang = state.translateDir === 'auto-en' ? 'ru-RU' : 'en-US';
+            state.recognition.start();
+        } catch(e) {}
+        document.getElementById('btn-voice').classList.add('recording');
+        document.getElementById('voice-indicator').classList.remove('hidden');
+    },
+
+    stop() {
+        if (!state.recognition) return;
+        state.voiceRecording = false;
+        try { state.recognition.stop(); } catch(e) {}
+        document.getElementById('btn-voice').classList.remove('recording');
+        document.getElementById('voice-indicator').classList.add('hidden');
+    }
+};
+
 // ==================== APP ====================
 
 const app = {
@@ -290,6 +413,13 @@ const app = {
         state.timerInterval = setInterval(() => app.updateTimerDisplay(), 1000);
 
         swipe.init();
+        voiceInput.init();
+
+        currencyApi.fetchRate().then(() => {
+            currencyApi.updateUI();
+            this.updateHome();
+            this.renderHistory();
+        });
     },
 
     // --- TAB NAVIGATION ---
@@ -466,6 +596,8 @@ const app = {
         document.getElementById('goal-remaining').textContent = monthly >= goal
             ? '✅ Цель достигнута!'
             : `Осталось: ${fmtUSD(goal - monthly)}`;
+
+        currencyApi.updateUI();
     },
 
     // --- HISTORY ---
@@ -543,28 +675,39 @@ const app = {
 
     renderStats() {
         const shifts = getShiftsForStatPeriod(state.currentStatPeriod);
+        const prevShifts = getPrevPeriodShifts(state.currentStatPeriod);
+
         const totalMs = getTotalMs(shifts);
         const totalUSD = getTotalUSD(shifts);
         const totalHours = totalMs / 3600000;
         const avgPerHour = totalHours > 0 ? totalUSD / totalHours : 0;
         const avgPerShift = shifts.length > 0 ? totalUSD / shifts.length : 0;
 
-        const bestDay = this.getBestDay(shifts);
-        const bestWeek = this.getBestWeek(shifts);
+        const prevMs = getTotalMs(prevShifts);
+        const prevUSD = getTotalUSD(prevShifts);
+        const prevCount = prevShifts.length;
 
-        document.getElementById('stats-metrics').innerHTML = `
+        const bestDay = this.getBestDay(shifts);
+
+        document.getElementById('stats-metrics-general').innerHTML = `
             <div class="metric-card">
                 <div class="metric-value">${shifts.length}</div>
                 <div class="metric-label">Всего смен</div>
+                ${comparisonHtml(shifts.length, prevCount)}
             </div>
             <div class="metric-card">
                 <div class="metric-value cyan">${fmtShort(totalMs)}</div>
                 <div class="metric-label">Всего часов</div>
+                ${comparisonHtml(totalHours, prevMs / 3600000)}
             </div>
             <div class="metric-card full-width">
                 <div class="metric-value green">${fmtMoney(totalUSD)}</div>
                 <div class="metric-label">Всего заработано</div>
+                ${comparisonHtml(totalUSD, prevUSD)}
             </div>
+        `;
+
+        document.getElementById('stats-metrics-avg').innerHTML = `
             <div class="metric-card">
                 <div class="metric-value orange">$${avgPerHour.toFixed(2)}</div>
                 <div class="metric-label">Средний $/час</div>
@@ -573,18 +716,18 @@ const app = {
                 <div class="metric-value">${fmtUSD(avgPerShift)}</div>
                 <div class="metric-label">Средняя смена</div>
             </div>
-            <div class="metric-card">
+        `;
+
+        document.getElementById('stats-metrics-best').innerHTML = `
+            <div class="metric-card full-width">
                 <div class="metric-value green">${bestDay ? fmtUSD(bestDay.total) : '$0'}</div>
                 <div class="metric-label">Лучший день${bestDay ? ' (' + bestDay.date + ')' : ''}</div>
-            </div>
-            <div class="metric-card">
-                <div class="metric-value orange">${bestWeek ? fmtUSD(bestWeek.total) : '$0'}</div>
-                <div class="metric-label">Лучшая неделя</div>
             </div>
         `;
 
         this.renderHoursChart(shifts);
         this.renderEarningsChart(shifts);
+        this.renderWeekdaysChart();
         this.renderCalendar();
     },
 
@@ -596,22 +739,6 @@ const app = {
         let best = null;
         for (const [date, total] of Object.entries(byDay)) {
             if (!best || total > best.total) best = { date, total };
-        }
-        return best;
-    },
-
-    getBestWeek(shifts) {
-        const byWeek = {};
-        shifts.forEach(s => {
-            const d = new Date(s.date);
-            const weekStart = new Date(d);
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-            const key = weekStart.toISOString().slice(0, 10);
-            byWeek[key] = (byWeek[key] || 0) + s.earningsUSD;
-        });
-        let best = null;
-        for (const [week, total] of Object.entries(byWeek)) {
-            if (!best || total > best.total) best = { week, total };
         }
         return best;
     },
@@ -769,6 +896,85 @@ const app = {
         });
     },
 
+    renderWeekdaysChart() {
+        const canvas = document.getElementById('chart-weekdays');
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = canvas.offsetWidth * dpr;
+        canvas.height = 200 * dpr;
+        ctx.scale(dpr, dpr);
+
+        const w = canvas.offsetWidth;
+        const h = 200;
+        const pad = { top: 10, right: 10, bottom: 30, left: 40 };
+
+        const byWeekday = [0, 0, 0, 0, 0, 0, 0];
+        const jsDayToIdx = [6, 0, 1, 2, 3, 4, 5];
+        state.shifts.forEach(s => {
+            const d = new Date(s.date + 'T00:00:00');
+            byWeekday[jsDayToIdx[d.getDay()]] += s.earningsUSD;
+        });
+
+        const data = DAY_NAMES.map((label, i) => ({ label, value: byWeekday[i] }));
+        const maxVal = Math.max(...data.map(d => d.value), 1);
+        const bestIdx = byWeekday.indexOf(Math.max(...byWeekday));
+
+        const chartW = w - pad.left - pad.right;
+        const chartH = h - pad.top - pad.bottom;
+        const barW = Math.min(chartW / data.length * 0.65, 36);
+        const gap = chartW / data.length;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const textColor = 'rgba(255,255,255,0.55)';
+
+        ctx.fillStyle = textColor;
+        ctx.font = '10px Inter, -apple-system';
+        ctx.textAlign = 'right';
+
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.top + chartH - (i / 4) * chartH;
+            const val = (i / 4) * maxVal;
+            ctx.fillText('$' + Math.round(val), pad.left - 4, y + 4);
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(w - pad.right, y);
+            ctx.stroke();
+        }
+
+        data.forEach((d, i) => {
+            const x = pad.left + gap * i + gap / 2;
+            const barH = (d.value / maxVal) * chartH;
+            const y = pad.top + chartH - barH;
+
+            if (d.value > 0) {
+                const isBest = i === bestIdx;
+                ctx.fillStyle = isBest ? '#00FFA3' : 'rgba(139, 92, 246, 0.6)';
+                if (isBest) {
+                    ctx.shadowColor = 'rgba(0, 255, 163, 0.5)';
+                    ctx.shadowBlur = 12;
+                }
+                ctx.beginPath();
+                const r = Math.min(barW / 2, 4);
+                ctx.moveTo(x - barW / 2, pad.top + chartH);
+                ctx.lineTo(x - barW / 2, y + r);
+                ctx.quadraticCurveTo(x - barW / 2, y, x - barW / 2 + r, y);
+                ctx.lineTo(x + barW / 2 - r, y);
+                ctx.quadraticCurveTo(x + barW / 2, y, x + barW / 2, y + r);
+                ctx.lineTo(x + barW / 2, pad.top + chartH);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.fillStyle = i === bestIdx ? '#00FFA3' : textColor;
+            ctx.textAlign = 'center';
+            ctx.font = `${i === bestIdx ? '600 ' : ''}11px Inter, -apple-system`;
+            ctx.fillText(d.label, x, h - 8);
+        });
+    },
+
     getChartData(shifts, type) {
         const byDate = {};
         shifts.forEach(s => {
@@ -845,9 +1051,9 @@ const app = {
 
     // --- TRANSLATOR ---
     swapTranslateDir() {
-        state.translateDir = state.translateDir === 'ru-en' ? 'en-ru' : 'ru-en';
-        document.getElementById('translate-dir-label').textContent = state.translateDir === 'ru-en' ? 'RU → EN' : 'EN → RU';
-        document.getElementById('translate-input').placeholder = state.translateDir === 'ru-en' ? 'Введите текст на русском...' : 'Enter text in English...';
+        state.translateDir = state.translateDir === 'auto-en' ? 'auto-ru' : 'auto-en';
+        document.getElementById('translate-dir-label').textContent = state.translateDir === 'auto-en' ? 'Авто → EN' : 'Авто → RU';
+        document.getElementById('translate-input').placeholder = state.translateDir === 'auto-en' ? 'Введите текст или нажмите 🎤...' : 'Enter text or tap 🎤...';
     },
 
     async doTranslate() {
@@ -858,7 +1064,8 @@ const app = {
         btn.textContent = '...';
         btn.disabled = true;
 
-        const langPair = state.translateDir === 'ru-en' ? 'ru|en' : 'en|ru';
+        const targetLang = state.translateDir.endsWith('en') ? 'en' : 'ru';
+        const langPair = `autodetect|${targetLang}`;
 
         try {
             const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(input)}&langpair=${langPair}`;
@@ -866,10 +1073,13 @@ const app = {
             const data = await resp.json();
 
             let result = '';
+            let detected = '';
             if (data.responseStatus === 200 && data.responseData) {
                 result = data.responseData.translatedText;
+                detected = data.responseData.detected || '';
             } else if (data.matches && data.matches.length > 0) {
                 result = data.matches[0].translation;
+                detected = data.matches[0].segment || '';
             } else {
                 result = 'Ошибка перевода';
             }
@@ -878,9 +1088,16 @@ const app = {
             document.getElementById('translate-output').classList.remove('hidden');
             document.getElementById('btn-copy-translate').classList.remove('hidden');
 
+            if (detected) {
+                const detEl = document.getElementById('translate-detected');
+                const langName = detected.toLowerCase().includes('ru') ? 'Русский' : 'English';
+                detEl.textContent = `Определён: ${langName}`;
+                detEl.classList.remove('hidden');
+            }
+
             state.translations.unshift({
-                from: state.translateDir === 'ru-en' ? 'ru' : 'en',
-                to: state.translateDir === 'ru-en' ? 'en' : 'ru',
+                from: 'auto',
+                to: targetLang,
                 text: input,
                 result,
                 timestamp: Date.now()
@@ -925,10 +1142,17 @@ const app = {
         `).join('');
     },
 
+    toggleVoiceInput() {
+        if (state.voiceRecording) {
+            voiceInput.stop();
+        } else {
+            voiceInput.start();
+        }
+    },
+
     // --- SETTINGS ---
     loadSettingsUI() {
-        document.getElementById('setting-rate').value = state.settings.currencyRate;
-        document.getElementById('setting-goal').value = state.settings.monthlyGoalUSD;
+        currencyApi.updateUI();
     },
 
     saveSetting(key, value) {

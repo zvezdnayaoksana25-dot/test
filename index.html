@@ -63,11 +63,13 @@
                 <button class="filter-btn" data-filter="month" onclick="app.setFilter('month')">Месяц</button>
                 <button class="filter-btn" data-filter="all" onclick="app.setFilter('all')">Всё</button>
             </div>
-            <div id="shifts-list" class="scroll-content shifts-list"></div>
-            <div id="shifts-summary" class="card shifts-summary hidden">
-                <div class="summary-row">
-                    <span class="summary-label">Итого</span>
-                    <span id="summary-total" class="summary-value">0ч 0м | $0 / ₽0</span>
+            <div class="scroll-content">
+                <div id="shifts-list" class="shifts-list"></div>
+                <div id="shifts-summary" class="card shifts-summary hidden">
+                    <div class="summary-row">
+                        <span class="summary-label">Итого</span>
+                        <span id="summary-total" class="summary-value">0ч 0м | $0 / ₽0</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -84,7 +86,14 @@
                 <button class="filter-btn" data-stat="all" onclick="app.setStatPeriod('all')">Всё</button>
             </div>
             <div class="scroll-content">
-                <div id="stats-metrics" class="metrics-grid"></div>
+                <div class="section-title" style="padding: 0 22px 6px;">Общие</div>
+                <div id="stats-metrics-general" class="metrics-grid" style="margin-bottom: 16px;"></div>
+
+                <div class="section-title" style="padding: 0 22px 6px;">Средние</div>
+                <div id="stats-metrics-avg" class="metrics-grid" style="margin-bottom: 16px;"></div>
+
+                <div class="section-title" style="padding: 0 22px 6px;">Рекорды</div>
+                <div id="stats-metrics-best" class="metrics-grid" style="margin-bottom: 16px;"></div>
 
                 <div class="card chart-card">
                     <div class="section-title">Часы по дням</div>
@@ -94,6 +103,11 @@
                 <div class="card chart-card">
                     <div class="section-title">Заработок по дням</div>
                     <canvas id="chart-earnings" height="200"></canvas>
+                </div>
+
+                <div class="card chart-card">
+                    <div class="section-title">Заработок по дням недели</div>
+                    <canvas id="chart-weekdays" height="200"></canvas>
                 </div>
 
                 <div class="card chart-card">
@@ -112,14 +126,24 @@
             </header>
             <div class="scroll-content">
                 <div class="translator-direction">
-                    <span id="translate-dir-label">RU → EN</span>
+                    <span id="translate-dir-label">Авто → EN</span>
                     <button class="btn-swap" onclick="app.swapTranslateDir()">⇄</button>
                 </div>
 
                 <div class="card translate-card">
-                    <textarea id="translate-input" placeholder="Введите текст..." rows="3"></textarea>
+                    <div class="translate-input-row">
+                        <textarea id="translate-input" placeholder="Введите текст или нажмите 🎤..." rows="3"></textarea>
+                        <button id="btn-voice" class="btn-voice" onclick="app.toggleVoiceInput()">🎤</button>
+                    </div>
+                    <div id="voice-indicator" class="voice-indicator hidden">
+                        <span class="voice-dot"></span>
+                        <span class="voice-dot"></span>
+                        <span class="voice-dot"></span>
+                        <span>Слушаю...</span>
+                    </div>
                     <button id="btn-translate" class="btn-primary" onclick="app.doTranslate()">Перевести</button>
                     <div id="translate-output" class="translate-output hidden"></div>
+                    <div id="translate-detected" class="translate-detected hidden"></div>
                     <button id="btn-copy-translate" class="btn-secondary hidden" onclick="app.copyTranslation()">Копировать</button>
                 </div>
 
@@ -141,9 +165,9 @@
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-title">Курс доллара</div>
-                            <div class="setting-desc">1$ = ? ₽</div>
+                            <div class="setting-desc" id="setting-rate-desc">Загрузка...</div>
                         </div>
-                        <input type="number" id="setting-rate" value="90" min="1" onchange="app.saveSetting('currencyRate', this.value)">
+                        <div id="setting-rate-display" class="setting-rate-display">—</div>
                     </div>
                     <div class="setting-divider"></div>
                     <div class="setting-row">
