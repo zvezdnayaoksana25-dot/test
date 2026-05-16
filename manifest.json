@@ -4,24 +4,24 @@
     "description": "Отслеживание рабочих смен, заработка и статистики",
     "start_url": "./index.html",
     "display": "standalone",
-    "background_color": "#F2F2F7",
-    "theme_color": "#007AFF",
+    "background_color": "#050507",
+    "theme_color": "#8B5CF6",
     "orientation": "portrait",
     "scope": "./",
     "lang": "ru",
     "categories": ["productivity", "utilities"],
     "icons": [
         {
-            "src": "https://cdn-icons-png.flaticon.com/512/2920/2920277.png",
+            "src": "./icon-192x192.png",
             "sizes": "192x192",
             "type": "image/png",
-            "purpose": "any"
+            "purpose": "any maskable"
         },
         {
-            "src": "https://cdn-icons-png.flaticon.com/512/2920/2920277.png",
+            "src": "./icon-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
-            "purpose": "any"
+            "purpose": "any maskable"
         }
     ]
 }
