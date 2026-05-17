@@ -171,6 +171,14 @@
                         </div>
                         <input type="number" id="setting-payout" value="66" min="1" max="100" onchange="app.saveSetting('payoutPercent', this.value)">
                     </div>
+                    <div class="setting-divider"></div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Ник на сайтах</div>
+                            <div class="setting-desc">Для копирования смены</div>
+                        </div>
+                        <input type="text" id="setting-nickname" placeholder="SallySweet_" onchange="app.saveSetting('nickname', this.value)">
+                    </div>
                 </div>
 
                 <div class="card settings-card">

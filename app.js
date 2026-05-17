@@ -1261,7 +1261,6 @@ const app = {
         const dateDisplay = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
         document.getElementById('day-stats-title').textContent = dateDisplay;
-
         const content = document.getElementById('day-stats-content');
 
         if (dayShifts.length === 0) {
@@ -1270,46 +1269,123 @@ const app = {
             const totalMs = getTotalMs(dayShifts);
             const totalNet = getTotalNet(dayShifts);
             const totalGross = getTotalGross(dayShifts);
+            const totalTokens = getTotalTokensAll(dayShifts);
             const totalHours = totalMs / 3600000;
             const ratePerHour = totalHours > 0 ? totalNet / totalHours : 0;
 
-            let shiftsHtml = dayShifts.map(s => `
-                <div class="day-shift-item">
-                    <div class="day-shift-time">${s.start} → ${s.end}</div>
-                    <div class="day-shift-detail">
-                        <span>${fmtShort(s.durationMs)}</span>
-                        <span style="color: var(--success); font-weight: 600;">net ${fmtUSD(getNetUSD(s))}</span>
-                    </div>
-                    ${s.tokensBySite ? `<div class="day-shift-detail"><span>gross ${fmtUSD(getGrossUSD(s))}</span></div>` : ''}
-                    ${s.comment ? `<div class="day-shift-comment">${this.escapeHtml(s.comment)}</div>` : ''}
-                </div>
-            `).join('');
+            let earliestStart = '23:59';
+            let latestEnd = '00:00';
+            dayShifts.forEach(s => {
+                if (s.start < earliestStart) earliestStart = s.start;
+                if (s.end > latestEnd) latestEnd = s.end;
+            });
+
+            const mergedTokens = {};
+            dayShifts.forEach(s => {
+                if (s.tokensBySite) {
+                    Object.entries(s.tokensBySite).forEach(([siteId, tokens]) => {
+                        mergedTokens[siteId] = (mergedTokens[siteId] || 0) + tokens;
+                    });
+                }
+            });
+
+            let tokensHtml = '';
+            if (Object.keys(mergedTokens).length > 0) {
+                tokensHtml = `<div class="section-title" style="margin-top:12px;margin-bottom:8px">Токены по сайтам</div>`;
+                Object.entries(mergedTokens).forEach(([siteId, tokens]) => {
+                    const site = state.sites.find(s => s.id === siteId);
+                    const siteName = site ? site.name : siteId;
+                    const gross = tokens / state.settings.tokenRate;
+                    tokensHtml += `
+                        <div class="day-shift-detail">
+                            <span>${this.escapeHtml(siteName)}</span>
+                            <span>${tokens} тк / ${fmtUSD(gross)}</span>
+                        </div>
+                    `;
+                });
+            }
 
             content.innerHTML = `
                 <div class="card" style="margin-bottom: 0;">
-                    <div class="summary-row">
-                        <span class="summary-label">Смен</span>
-                        <span class="summary-value">${dayShifts.length}</span>
-                    </div>
                     <div class="summary-row">
                         <span class="summary-label">Часов</span>
                         <span class="summary-value" style="color: var(--secondary);">${fmtShort(totalMs)}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="summary-label">Net на карту</span>
-                        <span class="summary-value" style="color: var(--success);">${fmtMoney(totalNet)}</span>
-                    </div>
-                    <div class="summary-row">
                         <span class="summary-label">Gross</span>
                         <span class="summary-value">${fmtUSD(totalGross)}</span>
                     </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Net на карту</span>
+                        <span class="summary-value" style="color: var(--success);">${fmtMoney(totalNet)}</span>
+                    </div>
                 </div>
+                ${tokensHtml}
                 <div class="day-stats-rate">$${ratePerHour.toFixed(2)} / час (net)</div>
-                <div class="day-shifts-list">${shiftsHtml}</div>
+                <button class="btn-copy-shift" onclick="app.copyShift('${dateStr}')">📋 Копировать смену</button>
             `;
         }
 
         document.getElementById('modal-day-stats').classList.remove('hidden');
+    },
+
+    copyShift(dateStr) {
+        const dayShifts = state.shifts.filter(s => s.date === dateStr);
+        if (dayShifts.length === 0) return;
+
+        const dateObj = new Date(dateStr + 'T00:00:00');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const year = dateObj.getFullYear();
+        const dateFormatted = `${day}.${month}.${year}`;
+
+        const nickname = state.settings.nickname || '';
+
+        let earliestStart = '23:59';
+        let latestEnd = '00:00';
+        dayShifts.forEach(s => {
+            if (s.start < earliestStart) earliestStart = s.start;
+            if (s.end > latestEnd) latestEnd = s.end;
+        });
+
+        const mergedTokens = {};
+        dayShifts.forEach(s => {
+            if (s.tokensBySite) {
+                Object.entries(s.tokensBySite).forEach(([siteId, tokens]) => {
+                    mergedTokens[siteId] = (mergedTokens[siteId] || 0) + tokens;
+                });
+            }
+        });
+
+        let lines = [];
+        lines.push(`Смена ${dateFormatted}`);
+        if (nickname) lines.push(nickname);
+        lines.push(`${earliestStart} - ${latestEnd}`);
+
+        let totalTokens = 0;
+        let totalGross = 0;
+
+        Object.entries(mergedTokens).forEach(([siteId, tokens]) => {
+            const site = state.sites.find(s => s.id === siteId);
+            const siteName = site ? site.name : siteId;
+            const gross = tokens / state.settings.tokenRate;
+            lines.push(`${siteName} - ${tokens}тк/ ${gross.toFixed(2)}$`);
+            totalTokens += tokens;
+            totalGross += gross;
+        });
+
+        lines.push('');
+        lines.push(`Total - ${totalTokens}тк/ ${totalGross.toFixed(2)}$`);
+
+        const text = lines.join('\n');
+
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.querySelector('.btn-copy-shift');
+            if (btn) {
+                btn.textContent = '✓ Скопировано';
+                setTimeout(() => { btn.textContent = '📋 Копировать смену'; }, 2000);
+            }
+        });
     },
 
     closeDayStats(e) {
@@ -1510,6 +1586,7 @@ const app = {
         document.getElementById('setting-token-rate').value = state.settings.tokenRate;
         document.getElementById('setting-payout').value = state.settings.payoutPercent;
         document.getElementById('setting-goal').value = state.settings.monthlyGoalUSD;
+        document.getElementById('setting-nickname').value = state.settings.nickname || '';
     },
 
     saveSetting(key, value) {
@@ -1519,6 +1596,8 @@ const app = {
             state.settings.payoutPercent = parseFloat(value) || 66;
         } else if (key === 'monthlyGoalUSD') {
             state.settings.monthlyGoalUSD = parseFloat(value) || 0;
+        } else if (key === 'nickname') {
+            state.settings.nickname = value.trim();
         }
         storage.save();
         this.updateHome();
@@ -1584,7 +1663,8 @@ const app = {
             monthlyGoalUSD: 3000,
             currentMonth: new Date().toISOString().slice(0, 7),
             tokenRate: 20,
-            payoutPercent: 66
+            payoutPercent: 66,
+            nickname: ''
         };
         storage.save();
         this.loadSettingsUI();

@@ -874,6 +874,18 @@ body {
     font-family: inherit;
 }
 
+.setting-row input[type="text"] {
+    width: 120px;
+    text-align: right;
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 14px;
+    background: rgba(20, 20, 28, 0.7);
+    color: var(--text);
+    font-family: inherit;
+}
+
 .btn-add-site {
     width: 32px;
     height: 32px;
@@ -1098,6 +1110,25 @@ body {
 
 .btn-delete-shift:active {
     background: rgba(255, 46, 99, 0.3);
+}
+
+.btn-copy-shift {
+    width: 100%;
+    margin-top: 14px;
+    padding: 14px;
+    border-radius: 14px;
+    border: 1px solid var(--primary);
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--primary);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-copy-shift:active {
+    background: rgba(139, 92, 246, 0.3);
+    transform: scale(0.98);
 }
 
 /* ===== TOKEN INPUTS ===== */
