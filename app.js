@@ -1,7 +1,7 @@
 // ==================== DATA ====================
 
 const DAY_NAMES = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-const DAY_NAMES_FULL = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'];
+const DAY_NAMES_FULL = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 const MONTH_NAMES = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
 // ==================== STATE ====================
@@ -28,7 +28,8 @@ const state = {
     frozenElapsed: null,
     voiceRecording: false,
     recognition: null,
-    editingSiteId: null
+    editingSiteId: null,
+    lastRateUpdate: 0
 };
 
 // ==================== STORAGE ====================
@@ -40,6 +41,7 @@ const storage = {
         localStorage.setItem('wt_sites', JSON.stringify(state.sites));
         localStorage.setItem('wt_settings', JSON.stringify(state.settings));
         localStorage.setItem('wt_translations', JSON.stringify(state.translations));
+        localStorage.setItem('wt_lastRateUpdate', String(state.lastRateUpdate || 0));
     },
     load() {
         try {
@@ -64,6 +66,10 @@ const storage = {
         try {
             const t = localStorage.getItem('wt_translations');
             if (t) state.translations = JSON.parse(t);
+        } catch(e) {}
+        try {
+            const lru = localStorage.getItem('wt_lastRateUpdate');
+            if (lru) state.lastRateUpdate = parseInt(lru) || 0;
         } catch(e) {}
 
         const currentMonthKey = new Date().toISOString().slice(0, 7);
@@ -214,18 +220,24 @@ function comparisonHtml(current, previous) {
 // ==================== CURRENCY API ====================
 
 const currencyApi = {
-    async fetchRate() {
+    async fetchRate(force) {
+        const now = Date.now();
+        const oneHour = 60 * 60 * 1000;
+        if (!force && state.lastRateUpdate && (now - state.lastRateUpdate) < oneHour) {
+            return state.settings.currencyRate;
+        }
         try {
             const resp = await fetch('https://open.er-api.com/v6/latest/USD');
             const data = await resp.json();
             if (data && data.rates && data.rates.RUB) {
                 const rate = Math.round(data.rates.RUB * 100) / 100;
                 state.settings.currencyRate = rate;
+                state.lastRateUpdate = now;
                 storage.save();
                 return rate;
             }
         } catch(e) {}
-        return null;
+        return state.settings.currencyRate;
     }
 };
 
@@ -322,6 +334,23 @@ const app = {
             this.updateHome();
             this.renderHistory();
         });
+
+        window.addEventListener('resize', () => {
+            if (document.getElementById('screen-stats').classList.contains('active')) {
+                this.renderStats();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(m => {
+                    m.classList.add('hidden');
+                });
+                state.editingShiftId = null;
+                state.editingSiteId = null;
+                state.frozenElapsed = null;
+            }
+        });
     },
 
     // --- TAB NAVIGATION ---
@@ -331,9 +360,12 @@ const app = {
         document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
         document.querySelector(`.tab-btn[data-tab="${tab}"]`).classList.add('active');
 
-        if (tab === 'history') this.renderHistory();
+        currencyApi.fetchRate().then(() => {
+            if (tab === 'history') this.renderHistory();
+            if (tab === 'home') { this.updateHome(); this.renderCalendar(); }
+        });
+
         if (tab === 'stats') this.renderStats();
-        if (tab === 'home') { this.updateHome(); this.renderCalendar(); }
         if (tab === 'settings') this.renderSites();
     },
 
@@ -422,7 +454,8 @@ const app = {
         document.getElementById('modal-net').textContent = fmtUSD(net);
     },
 
-    cancelEndShift() {
+    cancelEndShift(e) {
+        if (e && e.target !== e.currentTarget) return;
         state.frozenElapsed = null;
         document.getElementById('modal-end-shift').classList.add('hidden');
     },
@@ -549,6 +582,21 @@ const app = {
             let diffMin = endMin - startMin;
             if (diffMin < 0) diffMin += 24 * 60;
             shift.durationMs = diffMin * 60000;
+        }
+
+        let tokensBySite = {};
+        let totalTokens = 0;
+        document.querySelectorAll('#edit-token-inputs .edit-token-input').forEach(input => {
+            const val = parseInt(input.value) || 0;
+            if (val > 0) {
+                tokensBySite[input.dataset.siteId] = val;
+                totalTokens += val;
+            }
+        });
+        if (Object.keys(tokensBySite).length > 0) {
+            shift.tokensBySite = tokensBySite;
+        } else {
+            shift.tokensBySite = null;
         }
 
         shift.earningsUSD = newEarnings;
@@ -1251,7 +1299,8 @@ const app = {
     },
 
     calNav(dir) {
-        state.calendarDate.setMonth(state.calendarDate.getMonth() + dir);
+        const d = state.calendarDate;
+        state.calendarDate = new Date(d.getFullYear(), d.getMonth() + dir, 1);
         this.renderCalendar();
     },
 
@@ -1405,7 +1454,7 @@ const app = {
         if (!input) return;
 
         const btn = document.getElementById('btn-translate');
-        btn.textContent = '...';
+        btn.classList.add('loading');
         btn.disabled = true;
 
         const targetLang = state.translateDir.endsWith('en') ? 'en' : 'ru';
@@ -1455,7 +1504,7 @@ const app = {
             document.getElementById('translate-output').classList.remove('hidden');
         }
 
-        btn.textContent = 'Перевести';
+        btn.classList.remove('loading');
         btn.disabled = false;
     },
 
@@ -1484,6 +1533,12 @@ const app = {
                 <div class="th-result">${this.escapeHtml(t.result)}</div>
             </div>
         `).join('');
+    },
+
+    clearTranslateHistory() {
+        state.translations = [];
+        storage.save();
+        this.renderTranslateHistory();
     },
 
     toggleVoiceInput() {
@@ -1654,12 +1709,14 @@ const app = {
         if (!confirm('Удалить ВСЕ данные? Это действие нельзя отменить.')) return;
         if (!confirm('Точно удалить всё?')) return;
 
+        const savedRate = state.settings.currencyRate;
         state.shifts = [];
         state.sites = [];
         state.activeShift = null;
         state.translations = [];
+        state.lastRateUpdate = 0;
         state.settings = {
-            currencyRate: 90,
+            currencyRate: savedRate,
             monthlyGoalUSD: 3000,
             currentMonth: new Date().toISOString().slice(0, 7),
             tokenRate: 20,

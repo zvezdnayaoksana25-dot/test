@@ -135,7 +135,10 @@
                 </div>
 
                 <div id="translate-history-section" class="card translate-history hidden">
-                    <div class="section-title">История переводов</div>
+                    <div class="translate-history-header">
+                        <div class="section-title" style="margin-bottom:0">История переводов</div>
+                        <button class="btn-clear-history" onclick="app.clearTranslateHistory()">Очистить</button>
+                    </div>
                     <div id="translate-history"></div>
                 </div>
             </div>
@@ -162,14 +165,14 @@
                         <div class="setting-info">
                             <div class="setting-title">Токенов за $1</div>
                         </div>
-                        <input type="number" id="setting-token-rate" value="20" min="1" onchange="app.saveSetting('tokenRate', this.value)">
+                        <input type="number" id="setting-token-rate" value="20" min="1" oninput="app.saveSetting('tokenRate', this.value)">
                     </div>
                     <div class="setting-divider"></div>
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-title">% на карту</div>
                         </div>
-                        <input type="number" id="setting-payout" value="66" min="1" max="100" onchange="app.saveSetting('payoutPercent', this.value)">
+                        <input type="number" id="setting-payout" value="66" min="1" max="100" oninput="app.saveSetting('payoutPercent', this.value)">
                     </div>
                     <div class="setting-divider"></div>
                     <div class="setting-row">
@@ -177,7 +180,7 @@
                             <div class="setting-title">Ник на сайтах</div>
                             <div class="setting-desc">Для копирования смены</div>
                         </div>
-                        <input type="text" id="setting-nickname" placeholder="SallySweet_" onchange="app.saveSetting('nickname', this.value)">
+                        <input type="text" id="setting-nickname" placeholder="SallySweet_" oninput="app.saveSetting('nickname', this.value)">
                     </div>
                 </div>
 
@@ -187,7 +190,7 @@
                             <div class="setting-title">Месячная цель ($)</div>
                             <div class="setting-desc">Сумма в долларах</div>
                         </div>
-                        <input type="number" id="setting-goal" value="3000" min="0" onchange="app.saveSetting('monthlyGoalUSD', this.value)">
+                        <input type="number" id="setting-goal" value="3000" min="0" oninput="app.saveSetting('monthlyGoalUSD', this.value)">
                     </div>
                 </div>
 
@@ -230,8 +233,8 @@
         </div>
 
         <!-- МОДАЛЬНОЕ ОКНО ЗАВЕРШЕНИЯ СМЕНЫ -->
-        <div id="modal-end-shift" class="modal-overlay hidden">
-            <div class="modal-card">
+        <div id="modal-end-shift" class="modal-overlay hidden" onclick="app.cancelEndShift(event)">
+            <div class="modal-card" onclick="event.stopPropagation()">
                 <h2>Завершить смену</h2>
                 <div class="modal-detail">
                     <span class="modal-detail-label">Длительность</span>
