@@ -251,6 +251,36 @@ body {
     font-size: 16px;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.summary-value .money-usd {
+    font-size: inherit;
+    font-weight: inherit;
+}
+
+.summary-value .money-rub {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-sec);
+    margin-top: 2px;
+}
+
+.money-usd {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.money-rub {
+    display: block;
+    font-size: 12px;
+    color: var(--text-sec);
+    font-weight: 400;
+    margin-top: 2px;
+    line-height: 1.2;
 }
 
 /* ===== GOAL ===== */
@@ -376,18 +406,25 @@ body {
     text-shadow: 0 0 8px rgba(0, 255, 163, 0.3);
 }
 
-.shift-gross {
+.shift-net-rub {
     font-size: 12px;
-    color: var(--warning);
-    font-weight: 500;
+    color: var(--text-sec);
+    font-weight: 400;
     margin-top: 1px;
 }
 
-.shift-rub {
+.shift-gross {
     font-size: 13px;
-    color: var(--success);
+    color: var(--warning);
     font-weight: 500;
-    margin-top: 2px;
+    margin-top: 4px;
+}
+
+.shift-gross-rub {
+    font-size: 11px;
+    color: var(--text-sec);
+    font-weight: 400;
+    margin-top: 1px;
 }
 
 .shift-duration {
@@ -494,6 +531,22 @@ body {
     letter-spacing: -0.5px;
     margin-bottom: 4px;
     font-variant-numeric: tabular-nums;
+    line-height: 1.2;
+}
+
+.metric-value .money-usd {
+    font-size: inherit;
+    font-weight: inherit;
+    letter-spacing: inherit;
+    margin-bottom: 0;
+}
+
+.metric-value .money-rub {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-sec);
+    letter-spacing: normal;
+    margin-top: 2px;
 }
 
 .metric-label {

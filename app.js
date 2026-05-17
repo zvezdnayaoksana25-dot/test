@@ -111,6 +111,10 @@ function fmtRUB(usd) {
     return `₽${Math.round(usd * state.settings.currencyRate).toLocaleString('ru-RU')}`;
 }
 
+function fmtMoneyLines(usd) {
+    return `<span class="money-usd">${fmtUSD(usd)}</span><span class="money-rub">${fmtRUB(usd)}</span>`;
+}
+
 function getNetUSD(shift) {
     return shift.earningsUSD * state.settings.payoutPercent / 100;
 }
@@ -424,7 +428,7 @@ const app = {
         if (state.sites.length === 0) {
             section.classList.add('hidden');
             document.getElementById('modal-total-tokens').textContent = '0';
-            document.getElementById('modal-gross').textContent = '$0 / ₽0';
+            document.getElementById('modal-gross').innerHTML = fmtMoneyLines(0);
             document.getElementById('modal-net').textContent = '$0';
             document.getElementById('modal-net-rub').textContent = '₽0';
         } else {
@@ -451,7 +455,7 @@ const app = {
         const net = gross * state.settings.payoutPercent / 100;
 
         document.getElementById('modal-total-tokens').textContent = totalTokens;
-        document.getElementById('modal-gross').textContent = `${fmtUSD(gross)} / ${fmtRUB(gross)}`;
+        document.getElementById('modal-gross').innerHTML = fmtMoneyLines(gross);
         document.getElementById('modal-net').textContent = fmtUSD(net);
         document.getElementById('modal-net-rub').textContent = fmtRUB(net);
     },
@@ -628,14 +632,15 @@ const app = {
     // --- HOME ---
     updateHome() {
         const today = getTodayShifts();
+        const todayNet = getTotalNet(today);
         document.getElementById('today-hours').textContent = fmtShort(getTotalMs(today));
-        document.getElementById('today-earnings').textContent = fmtMoney(getTotalNet(today));
+        document.getElementById('today-earnings').innerHTML = fmtMoneyLines(todayNet);
 
         const monthly = getMonthlyNet();
         const goal = state.settings.monthlyGoalUSD;
         const pct = goal > 0 ? Math.min((monthly / goal) * 100, 100) : 0;
 
-        document.getElementById('goal-amount').textContent = `${fmtMoney(monthly)} / ${fmtUSD(goal)}`;
+        document.getElementById('goal-amount').innerHTML = `<span class="money-usd" style="color:var(--primary)">${fmtUSD(monthly)}</span><span class="money-rub">${fmtRUB(monthly)}</span> / <span class="money-usd" style="color:var(--primary)">${fmtUSD(goal)}</span><span class="money-rub">${fmtRUB(goal)}</span>`;
         document.getElementById('goal-progress').style.width = `${pct}%`;
         document.getElementById('goal-remaining').textContent = monthly >= goal
             ? '✅ Цель достигнута!'
@@ -668,8 +673,6 @@ const app = {
             const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
             const net = getNetUSD(s);
             const gross = getGrossUSD(s);
-            const rubNet = fmtRUB(net);
-            const rubGross = fmtRUB(gross);
             return `
                 <div class="shift-card" data-shift-id="${s.id}" onclick="app.editShift('${s.id}')">
                     <div class="shift-info">
@@ -680,8 +683,9 @@ const app = {
                     </div>
                     <div class="shift-earnings">
                         <div class="shift-net">${fmtUSD(net)}</div>
+                        <div class="shift-net-rub">${fmtRUB(net)}</div>
                         <div class="shift-gross">${fmtUSD(gross)}</div>
-                        <div class="shift-rub">${rubNet}</div>
+                        <div class="shift-gross-rub">${fmtRUB(gross)}</div>
                     </div>
                 </div>
             `;
@@ -691,8 +695,8 @@ const app = {
         const totalNet = getTotalNet(filtered);
         const totalGross = getTotalGross(filtered);
         document.getElementById('summary-hours').textContent = fmtShort(totalMs);
-        document.getElementById('summary-net').textContent = fmtMoney(totalNet);
-        document.getElementById('summary-gross').textContent = `${fmtUSD(totalGross)} / ${fmtRUB(totalGross)}`;
+        document.getElementById('summary-net').innerHTML = fmtMoneyLines(totalNet);
+        document.getElementById('summary-gross').innerHTML = fmtMoneyLines(totalGross);
         summaryEl.classList.remove('hidden');
     },
 
@@ -737,7 +741,6 @@ const app = {
         const avgGrossPerShift = shifts.length > 0 ? totalGross / shifts.length : 0;
 
         const bestDayNet = this.getBestDay(shifts, 'net');
-        const bestDayGross = this.getBestDay(shifts, 'gross');
         const bestDayHours = this.getBestDayHours(shifts);
 
         // --- EARNINGS TAB ---
@@ -750,13 +753,13 @@ const app = {
                     ${comparisonHtml(shifts.length, prevCount)}
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value green">${fmtMoney(totalNet)}</div>
+                    <div class="metric-value green">${fmtMoneyLines(totalNet)}</div>
                     <div class="metric-label">На карту</div>
                     ${comparisonHtml(totalNet, prevNet)}
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value orange">${fmtUSD(totalGross)}</div>
-                    <div class="metric-label">Общая</div>
+                    <div class="metric-value orange">${fmtMoneyLines(totalGross)}</div>
+                    <div class="metric-label">Общий</div>
                     ${comparisonHtml(totalGross, prevGross)}
                 </div>
                 <div class="metric-card">
@@ -767,18 +770,18 @@ const app = {
             <div class="section-title" style="padding: 0 22px 6px;">Средние</div>
             <div class="metrics-grid" style="margin-bottom: 16px;">
                 <div class="metric-card">
-                    <div class="metric-value orange">$${avgNetPerHour.toFixed(2)}</div>
+                    <div class="metric-value orange">${fmtMoneyLines(avgNetPerHour)}</div>
                     <div class="metric-label">Средний $/час</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-value">${fmtUSD(avgNetPerShift)}</div>
+                    <div class="metric-value">${fmtMoneyLines(avgNetPerShift)}</div>
                     <div class="metric-label">Средняя смена</div>
                 </div>
             </div>
             <div class="section-title" style="padding: 0 22px 6px;">Рекорды</div>
             <div class="metrics-grid" style="margin-bottom: 16px;">
                 <div class="metric-card full-width">
-                    <div class="metric-value green">${bestDayNet ? fmtUSD(bestDayNet.total) : '$0'}</div>
+                    <div class="metric-value green">${bestDayNet ? fmtMoneyLines(bestDayNet.total) : fmtMoneyLines(0)}</div>
                     <div class="metric-label">Лучший день${bestDayNet ? ' (' + bestDayNet.date + ')' : ''}</div>
                 </div>
             </div>
@@ -789,6 +792,10 @@ const app = {
             <div class="card chart-card">
                 <div class="section-title">Общий заработок по дням</div>
                 <canvas id="chart-gross" height="200"></canvas>
+            </div>
+            <div class="card chart-card">
+                <div class="section-title">Средний заработок по дням недели</div>
+                <canvas id="chart-weekdays" height="200"></canvas>
             </div>
         `;
 
@@ -821,10 +828,6 @@ const app = {
                 <div class="section-title">Часы по дням</div>
                 <canvas id="chart-hours" height="200"></canvas>
             </div>
-            <div class="card chart-card">
-                <div class="section-title">Заработок по дням недели</div>
-                <canvas id="chart-weekdays" height="200"></canvas>
-            </div>
         `;
 
         // Render charts after DOM update
@@ -832,9 +835,9 @@ const app = {
             if (state.currentStatTab === 'earnings') {
                 this.renderEarningsChart(shifts, 'chart-net', 'net');
                 this.renderEarningsChart(shifts, 'chart-gross', 'gross');
+                this.renderWeekdaysAvgChart();
             } else if (state.currentStatTab === 'hours') {
                 this.renderHoursChart(shifts);
-                this.renderWeekdaysChart();
             }
         }, 50);
     },
@@ -890,15 +893,11 @@ const app = {
         const maxVal = Math.max(...data.map(d => d.value), 1);
         const chartW = w - pad.left - pad.right;
         const chartH = h - pad.top - pad.bottom;
-        const barW = Math.min(chartW / data.length * 0.7, 30);
-        const gap = chartW / data.length;
 
         ctx.clearRect(0, 0, w, h);
 
         const textColor = 'rgba(255,255,255,0.55)';
-        const barGradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
-        barGradient.addColorStop(0, '#00E5FF');
-        barGradient.addColorStop(1, '#8B5CF6');
+        const lineColor = '#00E5FF';
 
         ctx.fillStyle = textColor;
         ctx.font = '10px Inter, -apple-system';
@@ -915,26 +914,37 @@ const app = {
             ctx.stroke();
         }
 
-        data.forEach((d, i) => {
-            const x = pad.left + gap * i + gap / 2;
-            const barH = (d.value / maxVal) * chartH;
-            const y = pad.top + chartH - barH;
+        const points = data.map((d, i) => ({
+            x: pad.left + (chartW / Math.max(data.length - 1, 1)) * i,
+            y: pad.top + chartH - (d.value / maxVal) * chartH
+        }));
 
-            ctx.fillStyle = barGradient;
+        ctx.strokeStyle = lineColor;
+        ctx.lineWidth = 2.5;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        points.forEach((p, i) => {
+            if (i === 0) ctx.moveTo(p.x, p.y);
+            else ctx.lineTo(p.x, p.y);
+        });
+        ctx.stroke();
+
+        ctx.fillStyle = lineColor;
+        points.forEach(p => {
             ctx.beginPath();
-            const r = Math.min(barW / 2, 4);
-            ctx.moveTo(x - barW / 2, pad.top + chartH);
-            ctx.lineTo(x - barW / 2, y + r);
-            ctx.quadraticCurveTo(x - barW / 2, y, x - barW / 2 + r, y);
-            ctx.lineTo(x + barW / 2 - r, y);
-            ctx.quadraticCurveTo(x + barW / 2, y, x + barW / 2, y + r);
-            ctx.lineTo(x + barW / 2, pad.top + chartH);
+            ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
             ctx.fill();
+        });
 
-            ctx.fillStyle = textColor;
-            ctx.textAlign = 'center';
-            ctx.font = '9px Inter, -apple-system';
-            ctx.fillText(d.label, x, h - 8);
+        ctx.fillStyle = textColor;
+        ctx.textAlign = 'center';
+        ctx.font = '9px Inter, -apple-system';
+        const step = Math.max(1, Math.floor(data.length / 7));
+        data.forEach((d, i) => {
+            if (i % step === 0 || i === data.length - 1) {
+                const x = pad.left + (chartW / Math.max(data.length - 1, 1)) * i;
+                ctx.fillText(d.label, x, h - 8);
+            }
         });
     },
 
@@ -1104,7 +1114,7 @@ const app = {
         });
     },
 
-    renderWeekdaysChart() {
+    renderWeekdaysAvgChart() {
         const canvas = document.getElementById('chart-weekdays');
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -1119,15 +1129,21 @@ const app = {
         const pad = { top: 10, right: 10, bottom: 30, left: 40 };
 
         const byWeekday = [0, 0, 0, 0, 0, 0, 0];
+        const countByWeekday = [0, 0, 0, 0, 0, 0, 0];
         const jsDayToIdx = [6, 0, 1, 2, 3, 4, 5];
         state.shifts.forEach(s => {
             const d = new Date(s.date + 'T00:00:00');
-            byWeekday[jsDayToIdx[d.getDay()]] += getNetUSD(s);
+            const idx = jsDayToIdx[d.getDay()];
+            byWeekday[idx] += getNetUSD(s);
+            countByWeekday[idx]++;
         });
 
-        const data = DAY_NAMES.map((label, i) => ({ label, value: byWeekday[i] }));
+        const data = DAY_NAMES.map((label, i) => ({
+            label,
+            value: countByWeekday[i] > 0 ? byWeekday[i] / countByWeekday[i] : 0
+        }));
         const maxVal = Math.max(...data.map(d => d.value), 1);
-        const bestIdx = byWeekday.indexOf(Math.max(...byWeekday));
+        const bestIdx = byWeekday.findIndex((v, i) => countByWeekday[i] > 0 && v / countByWeekday[i] === maxVal);
 
         const chartW = w - pad.left - pad.right;
         const chartH = h - pad.top - pad.bottom;
@@ -1326,11 +1342,11 @@ const app = {
                     </div>
                     <div class="summary-row">
                         <span class="summary-label">Общий заработок</span>
-                        <span class="summary-value">${fmtUSD(totalGross)} / ${fmtRUB(totalGross)}</span>
+                        <span class="summary-value">${fmtMoneyLines(totalGross)}</span>
                     </div>
                     <div class="summary-row">
                         <span class="summary-label">На карту</span>
-                        <span class="summary-value" style="color: var(--success);">${fmtUSD(totalNet)} / ${fmtRUB(totalNet)}</span>
+                        <span class="summary-value">${fmtMoneyLines(totalNet)}</span>
                     </div>
                     <div class="summary-row">
                         <span class="summary-label">Токены</span>
