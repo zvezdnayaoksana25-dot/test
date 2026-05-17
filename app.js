@@ -1386,15 +1386,13 @@ const app = {
             const site = state.sites.find(s => s.id === siteId);
             const siteName = site ? site.name : siteId;
             const gross = tokens / state.settings.tokenRate;
-            const rub = Math.round(gross * state.settings.currencyRate).toLocaleString('ru-RU');
-            lines.push(`${siteName} - ${tokens}тк/ ${gross.toFixed(2)}$ / ₽${rub}`);
+            lines.push(`${siteName} - ${tokens}тк/ ${gross.toFixed(2)}$`);
             totalTokens += tokens;
             totalGross += gross;
         });
 
         lines.push('');
-        const totalRub = Math.round(totalGross * state.settings.currencyRate).toLocaleString('ru-RU');
-        lines.push(`Всего - ${totalTokens}тк/ ${totalGross.toFixed(2)}$ / ₽${totalRub}`);
+        lines.push(`Total - ${totalTokens}тк/ ${totalGross.toFixed(2)}$`);
 
         const text = lines.join('\n');
 
