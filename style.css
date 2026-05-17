@@ -294,7 +294,7 @@ body {
     margin-top: 8px;
 }
 
-/* ===== SWIPE ACTIONS ===== */
+/* ===== HISTORY ===== */
 
 .shifts-list {
     padding: 0 0 8px;
@@ -303,58 +303,6 @@ body {
 
 .shifts-summary {
     margin: 0 0 16px;
-}
-
-.shift-card-wrapper {
-    position: relative;
-    margin-bottom: 8px;
-    overflow: hidden;
-    border-radius: 18px;
-}
-
-.shift-card-wrapper .shift-actions-bg {
-    position: absolute;
-    top: 2px;
-    bottom: 2px;
-    display: flex;
-    align-items: center;
-    pointer-events: none;
-    z-index: 1;
-}
-
-.shift-card-wrapper .shift-actions-bg.left {
-    left: 0;
-    justify-content: flex-start;
-}
-
-.shift-card-wrapper .shift-actions-bg.right {
-    right: 0;
-    justify-content: flex-end;
-}
-
-.shift-card-wrapper .swipe-action-btn {
-    width: 80px;
-    height: 100%;
-    border: none;
-    font-size: 24px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    pointer-events: auto;
-    flex-shrink: 0;
-}
-
-.shift-card-wrapper .swipe-action-btn.edit {
-    background: linear-gradient(135deg, #8B5CF6, #6D28D9);
-    color: #fff;
-    box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
-}
-
-.shift-card-wrapper .swipe-action-btn.delete {
-    background: linear-gradient(135deg, #FF2E63, #CC1144);
-    color: #fff;
-    box-shadow: 0 0 16px rgba(255, 46, 99, 0.5);
 }
 
 .shift-card {
@@ -367,50 +315,17 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: relative;
-    z-index: 2;
+    margin-bottom: 8px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    transition: transform 0.3s var(--ease-spring);
-    will-change: transform;
+    cursor: pointer;
+    transition: all 0.15s var(--ease-smooth);
     user-select: none;
     -webkit-user-select: none;
-    touch-action: pan-y;
 }
 
-.shift-card.swiping {
-    transition: none;
-}
-
-/* ===== FILTER BAR ===== */
-
-.filter-bar {
-    display: flex;
-    gap: 8px;
-    padding: 0 16px 12px;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.filter-btn {
-    padding: 8px 16px;
-    border-radius: 20px;
-    border: 1px solid var(--card-border);
-    background: var(--card);
-    color: var(--text-sec);
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: all 0.2s var(--ease-smooth);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-}
-
-.filter-btn.active {
-    background: linear-gradient(135deg, #8B5CF6, #00E5FF);
-    border-color: transparent;
-    color: #fff;
-    box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
+.shift-card:active {
+    transform: scale(0.98);
+    background: rgba(30, 30, 42, 0.65);
 }
 
 .shift-info {
@@ -454,9 +369,10 @@ body {
     text-shadow: 0 0 8px rgba(0, 255, 163, 0.3);
 }
 
-.shift-rub {
-    font-size: 12px;
+.shift-gross {
+    font-size: 11px;
     color: var(--text-sec);
+    margin-top: 1px;
 }
 
 .shift-duration {
@@ -464,6 +380,78 @@ body {
     color: var(--secondary);
     font-weight: 500;
     margin-top: 2px;
+}
+
+/* ===== FILTER BAR ===== */
+
+.filter-bar {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--card-border);
+    background: var(--card);
+    color: var(--text-sec);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s var(--ease-smooth);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.filter-btn.active {
+    background: linear-gradient(135deg, #8B5CF6, #00E5FF);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
+}
+
+/* ===== STATS TABS ===== */
+
+.stats-tabs {
+    display: flex;
+    gap: 8px;
+    padding: 0 16px 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.stats-tab-btn {
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--card-border);
+    background: var(--card);
+    color: var(--text-sec);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s var(--ease-smooth);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+}
+
+.stats-tab-btn.active {
+    background: linear-gradient(135deg, #8B5CF6, #00E5FF);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 0 16px rgba(139, 92, 246, 0.5);
+}
+
+.stats-tab-content {
+    display: none;
+}
+
+.stats-tab-content.active {
+    display: block;
 }
 
 /* ===== METRICS ===== */
@@ -530,6 +518,10 @@ body {
 }
 
 /* ===== CALENDAR ===== */
+
+.calendar-section {
+    margin-bottom: 12px;
+}
 
 .calendar-header {
     display: flex;
@@ -882,12 +874,77 @@ body {
     font-family: inherit;
 }
 
-.setting-rate-display {
-    font-size: 22px;
-    font-weight: 700;
-    font-family: "Rajdhani", monospace;
-    color: var(--success);
-    text-shadow: 0 0 8px rgba(0, 255, 163, 0.3);
+.btn-add-site {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid var(--primary);
+    background: rgba(139, 92, 246, 0.15);
+    color: var(--primary);
+    font-size: 20px;
+    font-weight: 300;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.btn-add-site:active {
+    background: rgba(139, 92, 246, 0.3);
+    transform: scale(0.9);
+}
+
+.site-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--card-border);
+}
+
+.site-item:last-child {
+    border-bottom: none;
+}
+
+.site-name {
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.site-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-site-edit,
+.btn-site-delete {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: none;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.btn-site-edit {
+    background: rgba(139, 92, 246, 0.15);
+}
+
+.btn-site-edit:active {
+    background: rgba(139, 92, 246, 0.3);
+}
+
+.btn-site-delete {
+    background: rgba(255, 46, 99, 0.15);
+}
+
+.btn-site-delete:active {
+    background: rgba(255, 46, 99, 0.3);
 }
 
 .comparison-badge {
@@ -1024,6 +1081,59 @@ body {
 
 .modal-btn {
     flex: 1;
+}
+
+.btn-delete-shift {
+    flex: 1;
+    background: rgba(255, 46, 99, 0.15);
+    color: var(--danger);
+    border: 1px solid rgba(255, 46, 99, 0.3);
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-delete-shift:active {
+    background: rgba(255, 46, 99, 0.3);
+}
+
+/* ===== TOKEN INPUTS ===== */
+
+.token-input-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.token-site-name {
+    font-size: 14px;
+    font-weight: 500;
+    min-width: 80px;
+}
+
+.token-input-row input {
+    width: 100px;
+    text-align: right;
+}
+
+.modal-earnings-summary {
+    background: rgba(20, 20, 28, 0.5);
+    border: 1px solid var(--card-border);
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+}
+
+.modal-earnings-summary .summary-row {
+    padding: 6px 0;
+}
+
+.modal-earnings-summary .summary-row:not(:last-child) {
+    border-bottom: 1px solid var(--card-border);
 }
 
 /* ===== TAB BAR ===== */

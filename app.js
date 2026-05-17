@@ -9,22 +9,26 @@ const MONTH_NAMES = ['Январь', 'Февраль', 'Март', 'Апрель
 const state = {
     activeShift: null,
     shifts: [],
+    sites: [],
     settings: {
         currencyRate: 90,
         monthlyGoalUSD: 3000,
-        currentMonth: ''
+        currentMonth: '',
+        tokenRate: 20,
+        payoutPercent: 66
     },
     translations: [],
     currentFilter: 'today',
     currentStatPeriod: 'week',
+    currentStatTab: 'net',
     calendarDate: new Date(),
     translateDir: 'auto-en',
     timerInterval: null,
     editingShiftId: null,
     frozenElapsed: null,
-    swipedCardId: null,
     voiceRecording: false,
-    recognition: null
+    recognition: null,
+    editingSiteId: null
 };
 
 // ==================== STORAGE ====================
@@ -33,6 +37,7 @@ const storage = {
     save() {
         localStorage.setItem('wt_activeShift', JSON.stringify(state.activeShift));
         localStorage.setItem('wt_shifts', JSON.stringify(state.shifts));
+        localStorage.setItem('wt_sites', JSON.stringify(state.sites));
         localStorage.setItem('wt_settings', JSON.stringify(state.settings));
         localStorage.setItem('wt_translations', JSON.stringify(state.translations));
     },
@@ -44,6 +49,10 @@ const storage = {
         try {
             const s = localStorage.getItem('wt_shifts');
             if (s) state.shifts = JSON.parse(s);
+        } catch(e) {}
+        try {
+            const si = localStorage.getItem('wt_sites');
+            if (si) state.sites = JSON.parse(si);
         } catch(e) {}
         try {
             const st = localStorage.getItem('wt_settings');
@@ -94,6 +103,19 @@ function fmtUSD(usd) {
 
 function fmtRUB(usd) {
     return `₽${Math.round(usd * state.settings.currencyRate).toLocaleString('ru-RU')}`;
+}
+
+function getNetUSD(shift) {
+    return shift.earningsUSD * state.settings.payoutPercent / 100;
+}
+
+function getGrossUSD(shift) {
+    return shift.earningsUSD;
+}
+
+function getTotalTokens(shift) {
+    if (!shift.tokensBySite) return 0;
+    return Object.values(shift.tokensBySite).reduce((a, b) => a + b, 0);
 }
 
 function getTodayStr() {
@@ -156,8 +178,16 @@ function getTotalMs(shifts) {
     return shifts.reduce((sum, s) => sum + s.durationMs, 0);
 }
 
-function getTotalUSD(shifts) {
-    return shifts.reduce((sum, s) => sum + s.earningsUSD, 0);
+function getTotalNet(shifts) {
+    return shifts.reduce((sum, s) => sum + getNetUSD(s), 0);
+}
+
+function getTotalGross(shifts) {
+    return shifts.reduce((sum, s) => sum + getGrossUSD(s), 0);
+}
+
+function getTotalTokensAll(shifts) {
+    return shifts.reduce((sum, s) => sum + getTotalTokens(s), 0);
 }
 
 function getTodayShifts() {
@@ -165,14 +195,14 @@ function getTodayShifts() {
     return state.shifts.filter(s => s.date === today);
 }
 
-function getMonthlyEarnings() {
+function getMonthlyNet() {
     const monthStr = new Date().toISOString().slice(0, 7);
     return state.shifts
         .filter(s => s.date.slice(0, 7) === monthStr)
-        .reduce((sum, s) => sum + s.earningsUSD, 0);
+        .reduce((sum, s) => sum + getNetUSD(s), 0);
 }
 
-function comparisonHtml(current, previous, type) {
+function comparisonHtml(current, previous) {
     if (previous === 0 || previous === null || previous === undefined) return '';
     const pct = ((current - previous) / previous) * 100;
     const rounded = Math.abs(pct).toFixed(0);
@@ -196,124 +226,6 @@ const currencyApi = {
             }
         } catch(e) {}
         return null;
-    },
-
-    updateUI() {
-        const rate = state.settings.currencyRate;
-        const display = document.getElementById('setting-rate-display');
-        const desc = document.getElementById('setting-rate-desc');
-        if (display) display.textContent = `${rate} ₽`;
-        if (desc) desc.textContent = `1$ = ${rate} ₽ (авто)`;
-    }
-};
-
-// ==================== SWIPE ====================
-
-const swipe = {
-    startX: 0,
-    startY: 0,
-    currentX: 0,
-    isDragging: false,
-    activeWrapper: null,
-
-    init() {
-        const list = document.getElementById('shifts-list');
-        if (!list) return;
-
-        list.addEventListener('touchstart', (e) => this.onStart(e), { passive: false });
-        list.addEventListener('touchmove', (e) => this.onMove(e), { passive: false });
-        list.addEventListener('touchend', (e) => this.onEnd(e));
-        list.addEventListener('click', (e) => this.onClick(e));
-    },
-
-    onStart(e) {
-        const card = e.target.closest('.shift-card');
-        if (!card) return;
-
-        const wrapper = card.closest('.shift-card-wrapper');
-        if (!wrapper) return;
-
-        const touch = e.touches[0];
-        this.startX = touch.clientX;
-        this.startY = touch.clientY;
-        this.currentX = 0;
-        this.isDragging = true;
-        this.activeWrapper = wrapper;
-
-        card.classList.add('swiping');
-
-        if (state.swipedCardId && state.swipedCardId !== wrapper.dataset.shiftId) {
-            this.closeSwiped();
-        }
-    },
-
-    onMove(e) {
-        if (!this.isDragging || !this.activeWrapper) return;
-
-        const touch = e.touches[0];
-        const dx = touch.clientX - this.startX;
-        const dy = touch.clientY - this.startY;
-
-        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5) {
-            e.preventDefault();
-        }
-
-        this.currentX = Math.max(-100, Math.min(100, dx));
-        const card = this.activeWrapper.querySelector('.shift-card');
-        if (card) {
-            card.style.transform = `translateX(${this.currentX}px)`;
-        }
-    },
-
-    onEnd(e) {
-        if (!this.isDragging || !this.activeWrapper) return;
-
-        const card = this.activeWrapper.querySelector('.shift-card');
-        if (!card) return;
-
-        card.classList.remove('swiping');
-
-        if (this.currentX > 80) {
-            card.style.transform = 'translateX(100px)';
-            state.swipedCardId = this.activeWrapper.dataset.shiftId;
-        } else if (this.currentX < -80) {
-            card.style.transform = 'translateX(-100px)';
-            state.swipedCardId = this.activeWrapper.dataset.shiftId;
-        } else {
-            card.style.transform = 'translateX(0)';
-            if (state.swipedCardId === this.activeWrapper.dataset.shiftId) {
-                state.swipedCardId = null;
-            }
-        }
-
-        this.isDragging = false;
-        this.activeWrapper = null;
-        this.currentX = 0;
-    },
-
-    onClick(e) {
-        const btn = e.target.closest('.swipe-action-btn');
-        if (btn) {
-            const id = btn.dataset.id;
-            const action = btn.dataset.action;
-            if (action === 'edit') app.editShift(id);
-            if (action === 'delete') app.deleteShift(id);
-            this.closeSwiped();
-            return;
-        }
-
-        const wrapper = e.target.closest('.shift-card-wrapper');
-        if (wrapper && state.swipedCardId) {
-            this.closeSwiped();
-        }
-    },
-
-    closeSwiped() {
-        const prev = document.querySelector(`.shift-card-wrapper[data-shift-id="${state.swipedCardId}"] .shift-card`);
-        if (prev) {
-            prev.style.transform = 'translateX(0)';
-        }
-        state.swipedCardId = null;
     }
 };
 
@@ -389,6 +301,7 @@ const app = {
     init() {
         storage.load();
         this.loadSettingsUI();
+        this.renderSites();
         this.renderTranslateHistory();
 
         if (state.activeShift && state.activeShift.startTime) {
@@ -398,25 +311,14 @@ const app = {
         this.updateHome();
         this.renderHistory();
         this.renderStats();
-
-        document.getElementById('modal-earnings').addEventListener('input', function() {
-            const usd = parseFloat(this.value) || 0;
-            document.getElementById('modal-earnings-rub').textContent = `≈ ${fmtRUB(usd)}`;
-        });
-
-        document.getElementById('edit-earnings').addEventListener('input', function() {
-            const usd = parseFloat(this.value) || 0;
-            document.getElementById('edit-earnings-rub').textContent = `≈ ${fmtRUB(usd)}`;
-        });
+        this.renderCalendar();
 
         this.updateTimerDisplay();
         state.timerInterval = setInterval(() => app.updateTimerDisplay(), 1000);
 
-        swipe.init();
         voiceInput.init();
 
         currencyApi.fetchRate().then(() => {
-            currencyApi.updateUI();
             this.updateHome();
             this.renderHistory();
         });
@@ -431,7 +333,8 @@ const app = {
 
         if (tab === 'history') this.renderHistory();
         if (tab === 'stats') this.renderStats();
-        if (tab === 'home') this.updateHome();
+        if (tab === 'home') { this.updateHome(); this.renderCalendar(); }
+        if (tab === 'settings') this.renderSites();
     },
 
     // --- TIMER ---
@@ -477,13 +380,46 @@ const app = {
         }
     },
 
+    // --- END SHIFT MODAL ---
     showEndShiftModal() {
         state.frozenElapsed = Date.now() - state.activeShift.startTime;
         document.getElementById('modal-duration').textContent = fmtShort(state.frozenElapsed);
-        document.getElementById('modal-earnings').value = '';
         document.getElementById('modal-comment').value = '';
-        document.getElementById('modal-earnings-rub').textContent = '≈ ₽0';
+
+        const inputsContainer = document.getElementById('modal-token-inputs');
+        const section = document.getElementById('modal-tokens-section');
+
+        if (state.sites.length === 0) {
+            section.classList.add('hidden');
+            document.getElementById('modal-total-tokens').textContent = '0';
+            document.getElementById('modal-gross').textContent = '$0';
+            document.getElementById('modal-net').textContent = '$0';
+        } else {
+            section.classList.remove('hidden');
+            inputsContainer.innerHTML = state.sites.map(site => `
+                <div class="token-input-row">
+                    <span class="token-site-name">${this.escapeHtml(site.name)}</span>
+                    <input type="number" class="token-input" data-site-id="${site.id}" placeholder="0" min="0" oninput="app.updateModalEarnings()">
+                </div>
+            `).join('');
+            this.updateModalEarnings();
+        }
+
         document.getElementById('modal-end-shift').classList.remove('hidden');
+    },
+
+    updateModalEarnings() {
+        let totalTokens = 0;
+        document.querySelectorAll('#modal-token-inputs .token-input').forEach(input => {
+            totalTokens += parseInt(input.value) || 0;
+        });
+
+        const gross = totalTokens / state.settings.tokenRate;
+        const net = gross * state.settings.payoutPercent / 100;
+
+        document.getElementById('modal-total-tokens').textContent = totalTokens;
+        document.getElementById('modal-gross').textContent = fmtUSD(gross);
+        document.getElementById('modal-net').textContent = fmtUSD(net);
     },
 
     cancelEndShift() {
@@ -492,7 +428,18 @@ const app = {
     },
 
     saveShift() {
-        const earnings = parseFloat(document.getElementById('modal-earnings').value) || 0;
+        let tokensBySite = {};
+        let totalTokens = 0;
+
+        document.querySelectorAll('#modal-token-inputs .token-input').forEach(input => {
+            const val = parseInt(input.value) || 0;
+            if (val > 0) {
+                tokensBySite[input.dataset.siteId] = val;
+                totalTokens += val;
+            }
+        });
+
+        const gross = totalTokens / state.settings.tokenRate;
         const comment = document.getElementById('modal-comment').value.trim();
         const startTime = state.activeShift.startTime;
         const endTime = Date.now();
@@ -507,7 +454,8 @@ const app = {
             start: startDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
             end: endDate.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
             durationMs,
-            earningsUSD: earnings,
+            earningsUSD: gross,
+            tokensBySite: Object.keys(tokensBySite).length > 0 ? tokensBySite : null,
             comment
         };
 
@@ -527,7 +475,6 @@ const app = {
         const shift = state.shifts.find(s => s.id === id);
         if (!shift) return;
 
-        swipe.closeSwiped();
         state.editingShiftId = id;
 
         document.getElementById('edit-date').value = shift.date;
@@ -535,9 +482,44 @@ const app = {
         document.getElementById('edit-end').value = shift.end;
         document.getElementById('edit-earnings').value = shift.earningsUSD;
         document.getElementById('edit-comment').value = shift.comment || '';
-        document.getElementById('edit-earnings-rub').textContent = `≈ ${fmtRUB(shift.earningsUSD)}`;
 
+        const tokensSection = document.getElementById('edit-tokens-section');
+        const tokensContainer = document.getElementById('edit-token-inputs');
+
+        if (shift.tokensBySite && state.sites.length > 0) {
+            tokensSection.classList.remove('hidden');
+            tokensContainer.innerHTML = state.sites.map(site => {
+                const val = shift.tokensBySite[site.id] || 0;
+                return `
+                    <div class="token-input-row">
+                        <span class="token-site-name">${this.escapeHtml(site.name)}</span>
+                        <input type="number" class="edit-token-input" data-site-id="${site.id}" value="${val}" min="0" oninput="app.updateEditEarnings()">
+                    </div>
+                `;
+            }).join('');
+            this.updateEditEarnings();
+        } else {
+            tokensSection.classList.add('hidden');
+        }
+
+        this.updateEditNet();
         document.getElementById('modal-edit-shift').classList.remove('hidden');
+    },
+
+    updateEditEarnings() {
+        let totalTokens = 0;
+        document.querySelectorAll('#edit-token-inputs .edit-token-input').forEach(input => {
+            totalTokens += parseInt(input.value) || 0;
+        });
+        const gross = totalTokens / state.settings.tokenRate;
+        document.getElementById('edit-earnings').value = gross.toFixed(2);
+        this.updateEditNet();
+    },
+
+    updateEditNet() {
+        const gross = parseFloat(document.getElementById('edit-earnings').value) || 0;
+        const net = gross * state.settings.payoutPercent / 100;
+        document.getElementById('edit-net').textContent = fmtUSD(net);
     },
 
     cancelEditShift() {
@@ -581,13 +563,24 @@ const app = {
         this.renderStats();
     },
 
+    deleteShiftFromEdit() {
+        if (!confirm('Удалить эту смену?')) return;
+        state.shifts = state.shifts.filter(s => s.id !== state.editingShiftId);
+        storage.save();
+        document.getElementById('modal-edit-shift').classList.add('hidden');
+        state.editingShiftId = null;
+        this.renderHistory();
+        this.updateHome();
+        this.renderStats();
+    },
+
     // --- HOME ---
     updateHome() {
         const today = getTodayShifts();
         document.getElementById('today-hours').textContent = fmtShort(getTotalMs(today));
-        document.getElementById('today-earnings').textContent = fmtMoney(getTotalUSD(today));
+        document.getElementById('today-earnings').textContent = fmtMoney(getTotalNet(today));
 
-        const monthly = getMonthlyEarnings();
+        const monthly = getMonthlyNet();
         const goal = state.settings.monthlyGoalUSD;
         const pct = goal > 0 ? Math.min((monthly / goal) * 100, 100) : 0;
 
@@ -596,8 +589,6 @@ const app = {
         document.getElementById('goal-remaining').textContent = monthly >= goal
             ? '✅ Цель достигнута!'
             : `Осталось: ${fmtUSD(goal - monthly)}`;
-
-        currencyApi.updateUI();
     },
 
     // --- HISTORY ---
@@ -624,44 +615,28 @@ const app = {
             const dateObj = new Date(s.date + 'T00:00:00');
             const dayName = DAY_NAMES_FULL[dateObj.getDay()];
             const dateStr = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' });
+            const net = getNetUSD(s);
+            const gross = getGrossUSD(s);
             return `
-                <div class="shift-card-wrapper" data-shift-id="${s.id}">
-                    <div class="shift-actions-bg left">
-                        <button class="swipe-action-btn delete" data-action="delete" data-id="${s.id}">🗑</button>
+                <div class="shift-card" data-shift-id="${s.id}" onclick="app.editShift('${s.id}')">
+                    <div class="shift-info">
+                        <div class="shift-date">${dateStr}, ${dayName}</div>
+                        <div class="shift-time">${s.start} → ${s.end}</div>
+                        ${s.comment ? `<div class="shift-comment">${this.escapeHtml(s.comment)}</div>` : ''}
                     </div>
-                    <div class="shift-actions-bg right">
-                        <button class="swipe-action-btn edit" data-action="edit" data-id="${s.id}">✏️</button>
-                    </div>
-                    <div class="shift-card" data-shift-id="${s.id}">
-                        <div class="shift-info">
-                            <div class="shift-date">${dateStr}, ${dayName}</div>
-                            <div class="shift-time">${s.start} → ${s.end}</div>
-                            ${s.comment ? `<div class="shift-comment">${this.escapeHtml(s.comment)}</div>` : ''}
-                        </div>
-                        <div class="shift-earnings">
-                            <div class="shift-usd">${fmtUSD(s.earningsUSD)}</div>
-                            <div class="shift-rub">${fmtRUB(s.earningsUSD)}</div>
-                            <div class="shift-duration">${fmtShort(s.durationMs)}</div>
-                        </div>
+                    <div class="shift-earnings">
+                        <div class="shift-usd">${fmtUSD(net)}</div>
+                        <div class="shift-gross">gross ${fmtUSD(gross)}</div>
+                        <div class="shift-duration">${fmtShort(s.durationMs)}</div>
                     </div>
                 </div>
             `;
         }).join('');
 
         const totalMs = getTotalMs(filtered);
-        const totalUSD = getTotalUSD(filtered);
-        document.getElementById('summary-total').textContent = `${fmtShort(totalMs)} | ${fmtMoney(totalUSD)}`;
+        const totalNet = getTotalNet(filtered);
+        document.getElementById('summary-total').textContent = `${fmtShort(totalMs)} | ${fmtMoney(totalNet)}`;
         summaryEl.classList.remove('hidden');
-
-        setTimeout(() => swipe.init(), 0);
-    },
-
-    deleteShift(id) {
-        if (!confirm('Удалить эту смену?')) return;
-        state.shifts = state.shifts.filter(s => s.id !== id);
-        storage.save();
-        this.renderHistory();
-        this.updateHome();
     },
 
     // --- STATS ---
@@ -673,68 +648,191 @@ const app = {
         this.renderStats();
     },
 
+    setStatTab(tab) {
+        state.currentStatTab = tab;
+        document.querySelectorAll('.stats-tab-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.stab === tab);
+        });
+        document.querySelectorAll('.stats-tab-content').forEach(c => {
+            c.classList.toggle('active', c.id === `stats-tab-${tab}`);
+        });
+        this.renderStats();
+    },
+
     renderStats() {
         const shifts = getShiftsForStatPeriod(state.currentStatPeriod);
         const prevShifts = getPrevPeriodShifts(state.currentStatPeriod);
 
         const totalMs = getTotalMs(shifts);
-        const totalUSD = getTotalUSD(shifts);
+        const totalNet = getTotalNet(shifts);
+        const totalGross = getTotalGross(shifts);
+        const totalTokens = getTotalTokensAll(shifts);
         const totalHours = totalMs / 3600000;
-        const avgPerHour = totalHours > 0 ? totalUSD / totalHours : 0;
-        const avgPerShift = shifts.length > 0 ? totalUSD / shifts.length : 0;
 
         const prevMs = getTotalMs(prevShifts);
-        const prevUSD = getTotalUSD(prevShifts);
+        const prevNet = getTotalNet(prevShifts);
+        const prevGross = getTotalGross(prevShifts);
         const prevCount = prevShifts.length;
 
-        const bestDay = this.getBestDay(shifts);
+        const avgNetPerHour = totalHours > 0 ? totalNet / totalHours : 0;
+        const avgNetPerShift = shifts.length > 0 ? totalNet / shifts.length : 0;
+        const avgGrossPerHour = totalHours > 0 ? totalGross / totalHours : 0;
+        const avgGrossPerShift = shifts.length > 0 ? totalGross / shifts.length : 0;
 
-        document.getElementById('stats-metrics-general').innerHTML = `
-            <div class="metric-card">
-                <div class="metric-value">${shifts.length}</div>
-                <div class="metric-label">Всего смен</div>
-                ${comparisonHtml(shifts.length, prevCount)}
+        const bestDayNet = this.getBestDay(shifts, 'net');
+        const bestDayGross = this.getBestDay(shifts, 'gross');
+        const bestDayHours = this.getBestDayHours(shifts);
+
+        // --- NET TAB ---
+        document.getElementById('stats-tab-net').innerHTML = `
+            <div class="section-title" style="padding: 0 22px 6px;">Общие</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card">
+                    <div class="metric-value">${shifts.length}</div>
+                    <div class="metric-label">Всего смен</div>
+                    ${comparisonHtml(shifts.length, prevCount)}
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value cyan">${fmtShort(totalMs)}</div>
+                    <div class="metric-label">Всего часов</div>
+                    ${comparisonHtml(totalHours, prevMs / 3600000)}
+                </div>
+                <div class="metric-card full-width">
+                    <div class="metric-value green">${fmtMoney(totalNet)}</div>
+                    <div class="metric-label">На карту (net)</div>
+                    ${comparisonHtml(totalNet, prevNet)}
+                </div>
             </div>
-            <div class="metric-card">
-                <div class="metric-value cyan">${fmtShort(totalMs)}</div>
-                <div class="metric-label">Всего часов</div>
-                ${comparisonHtml(totalHours, prevMs / 3600000)}
+            <div class="section-title" style="padding: 0 22px 6px;">Средние</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card">
+                    <div class="metric-value orange">$${avgNetPerHour.toFixed(2)}</div>
+                    <div class="metric-label">Средний $/час (net)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${fmtUSD(avgNetPerShift)}</div>
+                    <div class="metric-label">Средняя смена (net)</div>
+                </div>
             </div>
-            <div class="metric-card full-width">
-                <div class="metric-value green">${fmtMoney(totalUSD)}</div>
-                <div class="metric-label">Всего заработано</div>
-                ${comparisonHtml(totalUSD, prevUSD)}
+            <div class="section-title" style="padding: 0 22px 6px;">Рекорды</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card full-width">
+                    <div class="metric-value green">${bestDayNet ? fmtUSD(bestDayNet.total) : '$0'}</div>
+                    <div class="metric-label">Лучший день${bestDayNet ? ' (' + bestDayNet.date + ')' : ''}</div>
+                </div>
+            </div>
+            <div class="card chart-card">
+                <div class="section-title">Net заработок по дням</div>
+                <canvas id="chart-net" height="200"></canvas>
             </div>
         `;
 
-        document.getElementById('stats-metrics-avg').innerHTML = `
-            <div class="metric-card">
-                <div class="metric-value orange">$${avgPerHour.toFixed(2)}</div>
-                <div class="metric-label">Средний $/час</div>
+        // --- GROSS TAB ---
+        document.getElementById('stats-tab-gross').innerHTML = `
+            <div class="section-title" style="padding: 0 22px 6px;">Общие</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card">
+                    <div class="metric-value">${shifts.length}</div>
+                    <div class="metric-label">Всего смен</div>
+                    ${comparisonHtml(shifts.length, prevCount)}
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value cyan">${fmtShort(totalMs)}</div>
+                    <div class="metric-label">Всего часов</div>
+                    ${comparisonHtml(totalHours, prevMs / 3600000)}
+                </div>
+                <div class="metric-card full-width">
+                    <div class="metric-value green">${fmtMoney(totalGross)}</div>
+                    <div class="metric-label">Gross заработок</div>
+                    ${comparisonHtml(totalGross, prevGross)}
+                </div>
+                <div class="metric-card full-width">
+                    <div class="metric-value" style="color:var(--secondary)">${totalTokens.toLocaleString('ru-RU')}</div>
+                    <div class="metric-label">Всего токенов</div>
+                </div>
             </div>
-            <div class="metric-card">
-                <div class="metric-value">${fmtUSD(avgPerShift)}</div>
-                <div class="metric-label">Средняя смена</div>
+            <div class="section-title" style="padding: 0 22px 6px;">Средние</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card">
+                    <div class="metric-value orange">$${avgGrossPerHour.toFixed(2)}</div>
+                    <div class="metric-label">Средний $/час (gross)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${fmtUSD(avgGrossPerShift)}</div>
+                    <div class="metric-label">Средняя смена (gross)</div>
+                </div>
+            </div>
+            <div class="section-title" style="padding: 0 22px 6px;">Рекорды</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card full-width">
+                    <div class="metric-value green">${bestDayGross ? fmtUSD(bestDayGross.total) : '$0'}</div>
+                    <div class="metric-label">Лучший день${bestDayGross ? ' (' + bestDayGross.date + ')' : ''}</div>
+                </div>
+            </div>
+            <div class="card chart-card">
+                <div class="section-title">Gross заработок по дням</div>
+                <canvas id="chart-gross" height="200"></canvas>
+            </div>
+            <div class="card chart-card">
+                <div class="section-title">Токены по дням</div>
+                <canvas id="chart-tokens" height="200"></canvas>
             </div>
         `;
 
-        document.getElementById('stats-metrics-best').innerHTML = `
-            <div class="metric-card full-width">
-                <div class="metric-value green">${bestDay ? fmtUSD(bestDay.total) : '$0'}</div>
-                <div class="metric-label">Лучший день${bestDay ? ' (' + bestDay.date + ')' : ''}</div>
+        // --- HOURS TAB ---
+        document.getElementById('stats-tab-hours').innerHTML = `
+            <div class="section-title" style="padding: 0 22px 6px;">Общие</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card">
+                    <div class="metric-value cyan">${fmtShort(totalMs)}</div>
+                    <div class="metric-label">Всего часов</div>
+                    ${comparisonHtml(totalHours, prevMs / 3600000)}
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${shifts.length}</div>
+                    <div class="metric-label">Всего смен</div>
+                </div>
+                <div class="metric-card full-width">
+                    <div class="metric-value orange">${totalHours > 0 ? (totalHours / shifts.length).toFixed(1) : '0'}ч</div>
+                    <div class="metric-label">Средние часы/смена</div>
+                </div>
+            </div>
+            <div class="section-title" style="padding: 0 22px 6px;">Рекорды</div>
+            <div class="metrics-grid" style="margin-bottom: 16px;">
+                <div class="metric-card full-width">
+                    <div class="metric-value cyan">${bestDayHours ? fmtShort(bestDayHours.ms) : '0ч'}</div>
+                    <div class="metric-label">Лучший день по часам${bestDayHours ? ' (' + bestDayHours.date + ')' : ''}</div>
+                </div>
+            </div>
+            <div class="card chart-card">
+                <div class="section-title">Часы по дням</div>
+                <canvas id="chart-hours" height="200"></canvas>
+            </div>
+            <div class="card chart-card">
+                <div class="section-title">Заработок по дням недели</div>
+                <canvas id="chart-weekdays" height="200"></canvas>
             </div>
         `;
 
-        this.renderHoursChart(shifts);
-        this.renderEarningsChart(shifts);
-        this.renderWeekdaysChart();
-        this.renderCalendar();
+        // Render charts after DOM update
+        setTimeout(() => {
+            if (state.currentStatTab === 'net') {
+                this.renderEarningsChart(shifts, 'chart-net', 'net');
+            } else if (state.currentStatTab === 'gross') {
+                this.renderEarningsChart(shifts, 'chart-gross', 'gross');
+                this.renderTokensChart(shifts);
+            } else if (state.currentStatTab === 'hours') {
+                this.renderHoursChart(shifts);
+                this.renderWeekdaysChart();
+            }
+        }, 50);
     },
 
-    getBestDay(shifts) {
+    getBestDay(shifts, type) {
         const byDay = {};
         shifts.forEach(s => {
-            byDay[s.date] = (byDay[s.date] || 0) + s.earningsUSD;
+            const val = type === 'net' ? getNetUSD(s) : getGrossUSD(s);
+            byDay[s.date] = (byDay[s.date] || 0) + val;
         });
         let best = null;
         for (const [date, total] of Object.entries(byDay)) {
@@ -743,8 +841,21 @@ const app = {
         return best;
     },
 
+    getBestDayHours(shifts) {
+        const byDay = {};
+        shifts.forEach(s => {
+            byDay[s.date] = (byDay[s.date] || 0) + s.durationMs;
+        });
+        let best = null;
+        for (const [date, ms] of Object.entries(byDay)) {
+            if (!best || ms > best.ms) best = { date, ms };
+        }
+        return best;
+    },
+
     renderHoursChart(shifts) {
         const canvas = document.getElementById('chart-hours');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
 
@@ -816,8 +927,9 @@ const app = {
         });
     },
 
-    renderEarningsChart(shifts) {
-        const canvas = document.getElementById('chart-earnings');
+    renderEarningsChart(shifts, canvasId, type) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
 
@@ -829,7 +941,7 @@ const app = {
         const h = 200;
         const pad = { top: 10, right: 10, bottom: 30, left: 40 };
 
-        const data = this.getChartData(shifts, 'earnings');
+        const data = this.getChartData(shifts, type);
         if (data.length === 0) {
             ctx.fillStyle = 'rgba(255,255,255,0.55)';
             ctx.font = '14px Inter, -apple-system';
@@ -845,7 +957,7 @@ const app = {
         ctx.clearRect(0, 0, w, h);
 
         const textColor = 'rgba(255,255,255,0.55)';
-        const lineColor = '#00FFA3';
+        const lineColor = type === 'net' ? '#00FFA3' : '#8B5CF6';
 
         ctx.fillStyle = textColor;
         ctx.font = '10px Inter, -apple-system';
@@ -896,8 +1008,94 @@ const app = {
         });
     },
 
+    renderTokensChart(shifts) {
+        const canvas = document.getElementById('chart-tokens');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = canvas.offsetWidth * dpr;
+        canvas.height = 200 * dpr;
+        ctx.scale(dpr, dpr);
+
+        const w = canvas.offsetWidth;
+        const h = 200;
+        const pad = { top: 10, right: 10, bottom: 30, left: 40 };
+
+        const byDate = {};
+        shifts.forEach(s => {
+            byDate[s.date] = (byDate[s.date] || 0) + getTotalTokens(s);
+        });
+
+        const sorted = Object.keys(byDate).sort();
+        const data = sorted.map(date => {
+            const d = new Date(date + 'T00:00:00');
+            const label = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+            return { label, value: byDate[date] };
+        });
+
+        if (data.length === 0) {
+            ctx.fillStyle = 'rgba(255,255,255,0.55)';
+            ctx.font = '14px Inter, -apple-system';
+            ctx.textAlign = 'center';
+            ctx.fillText('Нет данных', w / 2, h / 2);
+            return;
+        }
+
+        const maxVal = Math.max(...data.map(d => d.value), 1);
+        const chartW = w - pad.left - pad.right;
+        const chartH = h - pad.top - pad.bottom;
+        const barW = Math.min(chartW / data.length * 0.7, 30);
+        const gap = chartW / data.length;
+
+        ctx.clearRect(0, 0, w, h);
+
+        const textColor = 'rgba(255,255,255,0.55)';
+        const barGradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
+        barGradient.addColorStop(0, '#FFB800');
+        barGradient.addColorStop(1, '#FF6B9D');
+
+        ctx.fillStyle = textColor;
+        ctx.font = '10px Inter, -apple-system';
+        ctx.textAlign = 'right';
+
+        for (let i = 0; i <= 4; i++) {
+            const y = pad.top + chartH - (i / 4) * chartH;
+            const val = Math.round((i / 4) * maxVal);
+            ctx.fillText(val.toLocaleString('ru-RU'), pad.left - 4, y + 4);
+            ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            ctx.moveTo(pad.left, y);
+            ctx.lineTo(w - pad.right, y);
+            ctx.stroke();
+        }
+
+        data.forEach((d, i) => {
+            const x = pad.left + gap * i + gap / 2;
+            const barH = (d.value / maxVal) * chartH;
+            const y = pad.top + chartH - barH;
+
+            ctx.fillStyle = barGradient;
+            ctx.beginPath();
+            const r = Math.min(barW / 2, 4);
+            ctx.moveTo(x - barW / 2, pad.top + chartH);
+            ctx.lineTo(x - barW / 2, y + r);
+            ctx.quadraticCurveTo(x - barW / 2, y, x - barW / 2 + r, y);
+            ctx.lineTo(x + barW / 2 - r, y);
+            ctx.quadraticCurveTo(x + barW / 2, y, x + barW / 2, y + r);
+            ctx.lineTo(x + barW / 2, pad.top + chartH);
+            ctx.fill();
+
+            ctx.fillStyle = textColor;
+            ctx.textAlign = 'center';
+            ctx.font = '9px Inter, -apple-system';
+            ctx.fillText(d.label, x, h - 8);
+        });
+    },
+
     renderWeekdaysChart() {
         const canvas = document.getElementById('chart-weekdays');
+        if (!canvas) return;
         const ctx = canvas.getContext('2d');
         const dpr = window.devicePixelRatio || 1;
 
@@ -913,7 +1111,7 @@ const app = {
         const jsDayToIdx = [6, 0, 1, 2, 3, 4, 5];
         state.shifts.forEach(s => {
             const d = new Date(s.date + 'T00:00:00');
-            byWeekday[jsDayToIdx[d.getDay()]] += s.earningsUSD;
+            byWeekday[jsDayToIdx[d.getDay()]] += getNetUSD(s);
         });
 
         const data = DAY_NAMES.map((label, i) => ({ label, value: byWeekday[i] }));
@@ -978,8 +1176,9 @@ const app = {
     getChartData(shifts, type) {
         const byDate = {};
         shifts.forEach(s => {
-            if (!byDate[s.date]) byDate[s.date] = { earnings: 0, ms: 0 };
-            byDate[s.date].earnings += s.earningsUSD;
+            if (!byDate[s.date]) byDate[s.date] = { earnings: 0, net: 0, ms: 0 };
+            byDate[s.date].earnings += getGrossUSD(s);
+            byDate[s.date].net += getNetUSD(s);
             byDate[s.date].ms += s.durationMs;
         });
 
@@ -989,7 +1188,7 @@ const app = {
             const label = d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
             return {
                 label,
-                value: type === 'hours' ? byDate[date].ms / 3600000 : byDate[date].earnings
+                value: type === 'hours' ? byDate[date].ms / 3600000 : (type === 'net' ? byDate[date].net : byDate[date].earnings)
             };
         });
     },
@@ -1001,13 +1200,18 @@ const app = {
         const month = date.getMonth();
         const today = getTodayStr();
 
-        document.getElementById('calendar-header').innerHTML = `
+        const headerEl = document.getElementById('calendar-header');
+        if (!headerEl) return;
+
+        headerEl.innerHTML = `
             <button class="calendar-nav-btn" onclick="app.calNav(-1)">‹</button>
             <span class="month-title">${MONTH_NAMES[month]} ${year}</span>
             <button class="calendar-nav-btn" onclick="app.calNav(1)">›</button>
         `;
 
         const grid = document.getElementById('calendar-grid');
+        if (!grid) return;
+
         let html = DAY_NAMES.map(d => `<div class="cal-day-header">${d}</div>`).join('');
 
         const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
@@ -1054,7 +1258,6 @@ const app = {
     showDayStats(dateStr) {
         const dayShifts = state.shifts.filter(s => s.date === dateStr);
         const dateObj = new Date(dateStr + 'T00:00:00');
-        const dayName = DAY_NAMES_FULL[dateObj.getDay()];
         const dateDisplay = dateObj.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 
         document.getElementById('day-stats-title').textContent = dateDisplay;
@@ -1065,17 +1268,19 @@ const app = {
             content.innerHTML = `<div class="day-stats-no-shifts">Нет смен за этот день</div>`;
         } else {
             const totalMs = getTotalMs(dayShifts);
-            const totalUSD = getTotalUSD(dayShifts);
+            const totalNet = getTotalNet(dayShifts);
+            const totalGross = getTotalGross(dayShifts);
             const totalHours = totalMs / 3600000;
-            const ratePerHour = totalHours > 0 ? totalUSD / totalHours : 0;
+            const ratePerHour = totalHours > 0 ? totalNet / totalHours : 0;
 
             let shiftsHtml = dayShifts.map(s => `
                 <div class="day-shift-item">
                     <div class="day-shift-time">${s.start} → ${s.end}</div>
                     <div class="day-shift-detail">
                         <span>${fmtShort(s.durationMs)}</span>
-                        <span style="color: var(--success); font-weight: 600;">${fmtMoney(s.earningsUSD)}</span>
+                        <span style="color: var(--success); font-weight: 600;">net ${fmtUSD(getNetUSD(s))}</span>
                     </div>
+                    ${s.tokensBySite ? `<div class="day-shift-detail"><span>gross ${fmtUSD(getGrossUSD(s))}</span></div>` : ''}
                     ${s.comment ? `<div class="day-shift-comment">${this.escapeHtml(s.comment)}</div>` : ''}
                 </div>
             `).join('');
@@ -1091,11 +1296,15 @@ const app = {
                         <span class="summary-value" style="color: var(--secondary);">${fmtShort(totalMs)}</span>
                     </div>
                     <div class="summary-row">
-                        <span class="summary-label">Заработок</span>
-                        <span class="summary-value" style="color: var(--success);">${fmtMoney(totalUSD)}</span>
+                        <span class="summary-label">Net на карту</span>
+                        <span class="summary-value" style="color: var(--success);">${fmtMoney(totalNet)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Gross</span>
+                        <span class="summary-value">${fmtUSD(totalGross)}</span>
                     </div>
                 </div>
-                <div class="day-stats-rate">$${ratePerHour.toFixed(2)} / час</div>
+                <div class="day-stats-rate">$${ratePerHour.toFixed(2)} / час (net)</div>
                 <div class="day-shifts-list">${shiftsHtml}</div>
             `;
         }
@@ -1209,24 +1418,118 @@ const app = {
         }
     },
 
+    // --- SITES CRUD ---
+    renderSites() {
+        const container = document.getElementById('sites-list');
+        const countEl = document.getElementById('sites-count');
+        if (!container) return;
+
+        countEl.textContent = `${state.sites.length} сайт${state.sites.length === 1 ? '' : state.sites.length < 5 ? 'а' : 'ов'}`;
+
+        if (state.sites.length === 0) {
+            container.innerHTML = '<div style="padding: 12px 18px; font-size: 13px; color: var(--text-sec);">Добавьте сайты для стримов</div>';
+            return;
+        }
+
+        container.innerHTML = state.sites.map(site => `
+            <div class="site-item">
+                <span class="site-name">${this.escapeHtml(site.name)}</span>
+                <div class="site-actions">
+                    <button class="btn-site-edit" onclick="app.editSite('${site.id}')">✏️</button>
+                    <button class="btn-site-delete" onclick="app.deleteSite('${site.id}')">🗑</button>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    showAddSite() {
+        state.editingSiteId = null;
+        document.getElementById('modal-site-title').textContent = 'Добавить сайт';
+        document.getElementById('new-site-name').value = '';
+        document.getElementById('modal-add-site').classList.remove('hidden');
+    },
+
+    closeAddSite(e) {
+        if (e && e.target !== e.currentTarget) return;
+        document.getElementById('modal-add-site').classList.add('hidden');
+        state.editingSiteId = null;
+    },
+
+    saveNewSite() {
+        const name = document.getElementById('new-site-name').value.trim();
+        if (!name) return;
+
+        if (state.editingSiteId) {
+            const site = state.sites.find(s => s.id === state.editingSiteId);
+            if (site) site.name = name;
+        } else {
+            state.sites.push({
+                id: 'site_' + Date.now(),
+                name
+            });
+        }
+
+        storage.save();
+        this.renderSites();
+        document.getElementById('modal-add-site').classList.add('hidden');
+        state.editingSiteId = null;
+    },
+
+    editSite(id) {
+        const site = state.sites.find(s => s.id === id);
+        if (!site) return;
+
+        state.editingSiteId = id;
+        document.getElementById('modal-site-title').textContent = 'Редактировать сайт';
+        document.getElementById('new-site-name').value = site.name;
+        document.getElementById('modal-add-site').classList.remove('hidden');
+    },
+
+    deleteSite(id) {
+        if (!confirm('Удалить этот сайт? Токены этого сайта будут удалены из всех смен.')) return;
+
+        state.sites = state.sites.filter(s => s.id !== id);
+        state.shifts.forEach(shift => {
+            if (shift.tokensBySite && shift.tokensBySite[id]) {
+                delete shift.tokensBySite[id];
+                if (Object.keys(shift.tokensBySite).length === 0) {
+                    shift.tokensBySite = null;
+                }
+            }
+        });
+
+        storage.save();
+        this.renderSites();
+        this.renderHistory();
+        this.updateHome();
+        this.renderStats();
+    },
+
     // --- SETTINGS ---
     loadSettingsUI() {
-        currencyApi.updateUI();
+        document.getElementById('setting-token-rate').value = state.settings.tokenRate;
+        document.getElementById('setting-payout').value = state.settings.payoutPercent;
+        document.getElementById('setting-goal').value = state.settings.monthlyGoalUSD;
     },
 
     saveSetting(key, value) {
-        if (key === 'currencyRate') {
-            state.settings.currencyRate = parseFloat(value) || 90;
+        if (key === 'tokenRate') {
+            state.settings.tokenRate = parseFloat(value) || 20;
+        } else if (key === 'payoutPercent') {
+            state.settings.payoutPercent = parseFloat(value) || 66;
         } else if (key === 'monthlyGoalUSD') {
             state.settings.monthlyGoalUSD = parseFloat(value) || 0;
         }
         storage.save();
         this.updateHome();
+        this.renderHistory();
+        this.renderStats();
     },
 
     exportData() {
         const data = {
             shifts: state.shifts,
+            sites: state.sites,
             settings: state.settings,
             translations: state.translations,
             exportDate: new Date().toISOString()
@@ -1249,10 +1552,12 @@ const app = {
             try {
                 const data = JSON.parse(e.target.result);
                 if (data.shifts) state.shifts = data.shifts;
+                if (data.sites) state.sites = data.sites;
                 if (data.settings) state.settings = { ...state.settings, ...data.settings };
                 if (data.translations) state.translations = data.translations;
                 storage.save();
                 this.loadSettingsUI();
+                this.renderSites();
                 this.updateHome();
                 this.renderHistory();
                 this.renderStats();
@@ -1271,19 +1576,24 @@ const app = {
         if (!confirm('Точно удалить всё?')) return;
 
         state.shifts = [];
+        state.sites = [];
         state.activeShift = null;
         state.translations = [];
         state.settings = {
             currencyRate: 90,
             monthlyGoalUSD: 3000,
-            currentMonth: new Date().toISOString().slice(0, 7)
+            currentMonth: new Date().toISOString().slice(0, 7),
+            tokenRate: 20,
+            payoutPercent: 66
         };
         storage.save();
         this.loadSettingsUI();
+        this.renderSites();
         this.stopTimerUI();
         this.updateHome();
         this.renderHistory();
         this.renderStats();
+        this.renderCalendar();
         this.renderTranslateHistory();
     },
 

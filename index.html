@@ -50,6 +50,12 @@
                     </div>
                     <div id="goal-remaining" class="goal-remaining">Осталось: $0</div>
                 </div>
+
+                <div class="card calendar-section">
+                    <div class="section-title">Календарь</div>
+                    <div id="calendar-header" class="calendar-header"></div>
+                    <div id="calendar-grid" class="calendar-grid"></div>
+                </div>
             </div>
         </div>
 
@@ -69,7 +75,7 @@
                 <div id="shifts-list" class="shifts-list"></div>
                 <div id="shifts-summary" class="card shifts-summary hidden">
                     <div class="summary-row">
-                        <span class="summary-label">Итого</span>
+                        <span class="summary-label">Итого (на карту)</span>
                         <span id="summary-total" class="summary-value">0ч 0м | $0 / ₽0</span>
                     </div>
                 </div>
@@ -87,36 +93,15 @@
                 <button class="filter-btn" data-stat="month" onclick="app.setStatPeriod('month')">Месяц</button>
                 <button class="filter-btn" data-stat="all" onclick="app.setStatPeriod('all')">Всё</button>
             </div>
+            <div class="stats-tabs">
+                <button class="stats-tab-btn active" data-stab="net" onclick="app.setStatTab('net')">На карту</button>
+                <button class="stats-tab-btn" data-stab="gross" onclick="app.setStatTab('gross')">Всего</button>
+                <button class="stats-tab-btn" data-stab="hours" onclick="app.setStatTab('hours')">Часы</button>
+            </div>
             <div class="scroll-content">
-                <div class="section-title" style="padding: 0 22px 6px;">Общие</div>
-                <div id="stats-metrics-general" class="metrics-grid" style="margin-bottom: 16px;"></div>
-
-                <div class="section-title" style="padding: 0 22px 6px;">Средние</div>
-                <div id="stats-metrics-avg" class="metrics-grid" style="margin-bottom: 16px;"></div>
-
-                <div class="section-title" style="padding: 0 22px 6px;">Рекорды</div>
-                <div id="stats-metrics-best" class="metrics-grid" style="margin-bottom: 16px;"></div>
-
-                <div class="card chart-card">
-                    <div class="section-title">Часы по дням</div>
-                    <canvas id="chart-hours" height="200"></canvas>
-                </div>
-
-                <div class="card chart-card">
-                    <div class="section-title">Заработок по дням</div>
-                    <canvas id="chart-earnings" height="200"></canvas>
-                </div>
-
-                <div class="card chart-card">
-                    <div class="section-title">Заработок по дням недели</div>
-                    <canvas id="chart-weekdays" height="200"></canvas>
-                </div>
-
-                <div class="card chart-card">
-                    <div class="section-title">Календарь</div>
-                    <div id="calendar-header" class="calendar-header"></div>
-                    <div id="calendar-grid" class="calendar-grid"></div>
-                </div>
+                <div id="stats-tab-net" class="stats-tab-content active"></div>
+                <div id="stats-tab-gross" class="stats-tab-content"></div>
+                <div id="stats-tab-hours" class="stats-tab-content"></div>
             </div>
         </div>
 
@@ -166,12 +151,29 @@
                 <div class="card settings-card">
                     <div class="setting-row">
                         <div class="setting-info">
-                            <div class="setting-title">Курс доллара</div>
-                            <div class="setting-desc" id="setting-rate-desc">Загрузка...</div>
+                            <div class="setting-title">Сайты для стримов</div>
+                            <div class="setting-desc" id="sites-count">0 сайтов</div>
                         </div>
-                        <div id="setting-rate-display" class="setting-rate-display">—</div>
+                        <button class="btn-add-site" onclick="app.showAddSite()">+</button>
+                    </div>
+                    <div id="sites-list"></div>
+                    <div class="setting-divider"></div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">Токенов за $1</div>
+                        </div>
+                        <input type="number" id="setting-token-rate" value="20" min="1" onchange="app.saveSetting('tokenRate', this.value)">
                     </div>
                     <div class="setting-divider"></div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <div class="setting-title">% на карту</div>
+                        </div>
+                        <input type="number" id="setting-payout" value="66" min="1" max="100" onchange="app.saveSetting('payoutPercent', this.value)">
+                    </div>
+                </div>
+
+                <div class="card settings-card">
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-title">Месячная цель ($)</div>
@@ -212,7 +214,7 @@
                     <div class="setting-row">
                         <div class="setting-info">
                             <div class="setting-title">WorkTracker PWA</div>
-                            <div class="setting-desc">Версия 1.1</div>
+                            <div class="setting-desc">Версия 2.0</div>
                         </div>
                     </div>
                 </div>
@@ -227,9 +229,24 @@
                     <span class="modal-detail-label">Длительность</span>
                     <span id="modal-duration" class="modal-detail-value">0ч 0м 0с</span>
                 </div>
-                <label class="modal-label">Заработок (USD)</label>
-                <input type="number" id="modal-earnings" placeholder="0" min="0" step="0.01">
-                <div id="modal-earnings-rub" class="modal-rub-equiv">≈ ₽0</div>
+                <div id="modal-tokens-section">
+                    <div class="section-title" style="margin-bottom:8px">Токены по сайтам</div>
+                    <div id="modal-token-inputs"></div>
+                </div>
+                <div class="modal-earnings-summary">
+                    <div class="summary-row">
+                        <span class="summary-label">Всего токенов</span>
+                        <span id="modal-total-tokens" class="summary-value">0</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">Gross</span>
+                        <span id="modal-gross" class="summary-value">$0</span>
+                    </div>
+                    <div class="summary-row">
+                        <span class="summary-label">На карту</span>
+                        <span id="modal-net" class="summary-value" style="color:var(--success)">$0</span>
+                    </div>
+                </div>
                 <label class="modal-label">Комментарий</label>
                 <input type="text" id="modal-comment" placeholder="Заметка о смене...">
                 <div class="modal-actions">
@@ -249,12 +266,22 @@
                 <input type="time" id="edit-start">
                 <label class="modal-label">Время конца</label>
                 <input type="time" id="edit-end">
-                <label class="modal-label">Заработок (USD)</label>
+                <div id="edit-tokens-section" class="hidden">
+                    <div class="section-title" style="margin-bottom:8px">Токены по сайтам</div>
+                    <div id="edit-token-inputs"></div>
+                </div>
+                <label class="modal-label">Gross заработок (USD)</label>
                 <input type="number" id="edit-earnings" placeholder="0" min="0" step="0.01">
-                <div id="edit-earnings-rub" class="modal-rub-equiv">≈ ₽0</div>
+                <div class="modal-earnings-summary">
+                    <div class="summary-row">
+                        <span class="summary-label">Net на карту</span>
+                        <span id="edit-net" class="summary-value" style="color:var(--success)">$0</span>
+                    </div>
+                </div>
                 <label class="modal-label">Комментарий</label>
                 <input type="text" id="edit-comment" placeholder="Заметка о смене...">
                 <div class="modal-actions">
+                    <button class="btn-delete-shift" onclick="app.deleteShiftFromEdit()">🗑 Удалить</button>
                     <button class="btn-secondary modal-btn" onclick="app.cancelEditShift()">Отмена</button>
                     <button class="btn-primary modal-btn" onclick="app.saveEditShift()">💾 Сохранить</button>
                 </div>
@@ -269,6 +296,18 @@
                     <button class="btn-close-modal" onclick="app.closeDayStats()">✕</button>
                 </div>
                 <div id="day-stats-content"></div>
+            </div>
+        </div>
+
+        <!-- МОДАЛЬНОЕ ОКНО ДОБАВЛЕНИЯ САЙТА -->
+        <div id="modal-add-site" class="modal-overlay modal-center hidden" onclick="app.closeAddSite(event)">
+            <div class="modal-card modal-card-center" onclick="event.stopPropagation()">
+                <h2 id="modal-site-title">Добавить сайт</h2>
+                <input type="text" id="new-site-name" placeholder="Название сайта...">
+                <div class="modal-actions">
+                    <button class="btn-secondary modal-btn" onclick="app.closeAddSite()">Отмена</button>
+                    <button class="btn-primary modal-btn" onclick="app.saveNewSite()">Сохранить</button>
+                </div>
             </div>
         </div>
 
