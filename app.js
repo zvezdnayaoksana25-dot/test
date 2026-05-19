@@ -1536,6 +1536,36 @@ const app = {
         this.renderTranslateHistory();
     },
 
+    // --- CUSTOM PERIOD ---
+    showCustomPeriod() {
+        const today = getTodayStr();
+        document.getElementById('period-start').value = state.customPeriodStart || today;
+        document.getElementById('period-end').value = state.customPeriodEnd || today;
+        document.getElementById('modal-custom-period').classList.remove('hidden');
+    },
+
+    closeCustomPeriod(e) {
+        if (e && e.target !== e.currentTarget) return;
+        document.getElementById('modal-custom-period').classList.add('hidden');
+    },
+
+    applyCustomPeriod() {
+        const start = document.getElementById('period-start').value;
+        const end = document.getElementById('period-end').value;
+        if (!start || !end) return;
+
+        state.customPeriodStart = start;
+        state.customPeriodEnd = end;
+
+        document.getElementById('modal-custom-period').classList.add('hidden');
+
+        if (document.getElementById('screen-history').classList.contains('active')) {
+            this.setFilter('custom');
+        } else if (document.getElementById('screen-stats').classList.contains('active')) {
+            this.setStatPeriod('custom');
+        }
+    },
+
     // --- SITES CRUD ---
     renderSites() {
         const container = document.getElementById('sites-list');
