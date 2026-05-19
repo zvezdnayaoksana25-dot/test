@@ -739,13 +739,14 @@ body {
     box-shadow: 0 0 12px rgba(139, 92, 246, 0.3);
 }
 
-.btn-voice {
-    width: 48px;
-    height: 48px;
-    border-radius: 14px;
+.btn-clear-input {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
     border: 1px solid var(--card-border);
-    background: rgba(139, 92, 246, 0.15);
-    font-size: 22px;
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-sec);
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -755,48 +756,27 @@ body {
     margin-top: 4px;
 }
 
-.btn-voice:active {
-    background: rgba(139, 92, 246, 0.3);
-    transform: scale(0.92);
-}
-
-.btn-voice.recording {
-    background: rgba(255, 46, 99, 0.25);
-    border-color: var(--danger);
-    animation: voicePulse 1s infinite;
-}
-
-@keyframes voicePulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 46, 99, 0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(255, 46, 99, 0); }
-}
-
-.voice-indicator {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 10px;
-    margin-top: 8px;
-    font-size: 13px;
+.btn-clear-input:active {
+    background: rgba(255, 46, 99, 0.2);
     color: var(--danger);
+}
+
+.btn-reverse {
+    background: rgba(139, 92, 246, 0.1);
+    border: 1px solid rgba(139, 92, 246, 0.25);
+    color: var(--primary);
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 14px;
     font-weight: 500;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 8px;
+    transition: all 0.2s;
 }
 
-.voice-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--danger);
-    animation: voiceDot 1.2s infinite;
-}
-
-.voice-dot:nth-child(2) { animation-delay: 0.2s; }
-.voice-dot:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes voiceDot {
-    0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-    40% { opacity: 1; transform: scale(1.2); }
+.btn-reverse:active {
+    background: rgba(139, 92, 246, 0.25);
 }
 
 .translate-detected {

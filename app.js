@@ -26,10 +26,10 @@ const state = {
     timerInterval: null,
     editingShiftId: null,
     frozenElapsed: null,
-    voiceRecording: false,
-    recognition: null,
     editingSiteId: null,
-    lastRateUpdate: 0
+    lastRateUpdate: 0,
+    customPeriodStart: '',
+    customPeriodEnd: ''
 };
 
 // ==================== STORAGE ====================
@@ -139,12 +139,19 @@ function getShiftsForPeriod(period) {
     return state.shifts.filter(s => {
         if (period === 'today') return s.date === today;
         if (period === 'week') {
-            const weekAgo = new Date(now);
-            weekAgo.setDate(weekAgo.getDate() - 7);
-            return new Date(s.date) >= weekAgo;
+            const dayOfWeek = now.getDay();
+            const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            const monday = new Date(now);
+            monday.setDate(monday.getDate() + mondayOffset);
+            const mondayStr = monday.toISOString().slice(0, 10);
+            return s.date >= mondayStr && s.date <= today;
         }
         if (period === 'month') {
-            return s.date.slice(0, 7) === now.toISOString().slice(0, 7);
+            const monthStr = now.toISOString().slice(0, 7);
+            return s.date.startsWith(monthStr);
+        }
+        if (period === 'custom' && state.customPeriodStart && state.customPeriodEnd) {
+            return s.date >= state.customPeriodStart && s.date <= state.customPeriodEnd;
         }
         return true;
     });
@@ -153,13 +160,20 @@ function getShiftsForPeriod(period) {
 function getShiftsForStatPeriod(period) {
     const now = new Date();
     if (period === 'week') {
-        const start = new Date(now);
-        start.setDate(start.getDate() - 7);
-        return state.shifts.filter(s => new Date(s.date) >= start);
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const monday = new Date(now);
+        monday.setDate(monday.getDate() + mondayOffset);
+        const mondayStr = monday.toISOString().slice(0, 10);
+        const today = getTodayStr();
+        return state.shifts.filter(s => s.date >= mondayStr && s.date <= today);
     }
     if (period === 'month') {
         const monthStr = now.toISOString().slice(0, 7);
-        return state.shifts.filter(s => s.date.slice(0, 7) === monthStr);
+        return state.shifts.filter(s => s.date.startsWith(monthStr));
+    }
+    if (period === 'custom' && state.customPeriodStart && state.customPeriodEnd) {
+        return state.shifts.filter(s => s.date >= state.customPeriodStart && s.date <= state.customPeriodEnd);
     }
     return state.shifts;
 }
@@ -167,19 +181,30 @@ function getShiftsForStatPeriod(period) {
 function getPrevPeriodShifts(period) {
     const now = new Date();
     if (period === 'week') {
-        const end = new Date(now);
-        end.setDate(end.getDate() - 7);
-        const start = new Date(end);
-        start.setDate(start.getDate() - 7);
-        return state.shifts.filter(s => {
-            const d = new Date(s.date);
-            return d >= start && d < end;
-        });
+        const dayOfWeek = now.getDay();
+        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        const thisMonday = new Date(now);
+        thisMonday.setDate(thisMonday.getDate() + mondayOffset);
+        const prevMonday = new Date(thisMonday);
+        prevMonday.setDate(prevMonday.getDate() - 7);
+        const prevMondayStr = prevMonday.toISOString().slice(0, 10);
+        const thisMondayStr = thisMonday.toISOString().slice(0, 10);
+        return state.shifts.filter(s => s.date >= prevMondayStr && s.date < thisMondayStr);
     }
     if (period === 'month') {
         const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const monthStr = prevMonth.toISOString().slice(0, 7);
-        return state.shifts.filter(s => s.date.slice(0, 7) === monthStr);
+        return state.shifts.filter(s => s.date.startsWith(monthStr));
+    }
+    if (period === 'custom' && state.customPeriodStart && state.customPeriodEnd) {
+        const start = new Date(state.customPeriodStart);
+        const end = new Date(state.customPeriodEnd);
+        const diffMs = end - start;
+        const prevStart = new Date(start.getTime() - diffMs);
+        const prevEnd = new Date(end.getTime() - diffMs);
+        const prevStartStr = prevStart.toISOString().slice(0, 10);
+        const prevEndStr = prevEnd.toISOString().slice(0, 10);
+        return state.shifts.filter(s => s.date >= prevStartStr && s.date <= prevEndStr);
     }
     return [];
 }
@@ -230,84 +255,43 @@ const currencyApi = {
         if (!force && state.lastRateUpdate && (now - state.lastRateUpdate) < oneHour) {
             return state.settings.currencyRate;
         }
-        try {
-            const resp = await fetch('https://open.er-api.com/v6/latest/USD');
-            const data = await resp.json();
-            if (data && data.rates && data.rates.RUB) {
-                const rate = Math.round(data.rates.RUB * 100) / 100;
-                state.settings.currencyRate = rate;
-                state.lastRateUpdate = now;
-                storage.save();
-                return rate;
-            }
-        } catch(e) {}
-        return state.settings.currencyRate;
-    }
-};
 
-// ==================== VOICE INPUT ====================
-
-const voiceInput = {
-    init() {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            const btn = document.getElementById('btn-voice');
-            if (btn) {
-                btn.style.opacity = '0.3';
-                btn.title = 'Голосовой ввод не поддерживается';
+        const apis = [
+            {
+                url: 'https://open.er-api.com/v6/latest/USD',
+                parse: (data) => data?.rates?.RUB ? Math.round(data.rates.RUB * 100) / 100 : null
+            },
+            {
+                url: 'https://api.exchangerate-api.com/v4/latest/USD',
+                parse: (data) => data?.rates?.RUB ? Math.round(data.rates.RUB * 100) / 100 : null
+            },
+            {
+                url: 'https://api.frankfurter.app/latest?base=USD&symbols=RUB',
+                parse: (data) => data?.rates?.RUB ? Math.round(data.rates.RUB * 100) / 100 : null
             }
-            return;
+        ];
+
+        for (const api of apis) {
+            try {
+                console.log('Fetching rate from:', api.url);
+                const resp = await fetch(api.url);
+                if (!resp.ok) continue;
+                const data = await resp.json();
+                const rate = api.parse(data);
+                if (rate && rate > 10) {
+                    state.settings.currencyRate = rate;
+                    state.lastRateUpdate = now;
+                    storage.save();
+                    console.log('Rate updated:', rate);
+                    return rate;
+                }
+            } catch(e) {
+                console.warn('API failed:', api.url, e.message);
+            }
         }
 
-        state.recognition = new SpeechRecognition();
-        state.recognition.interimResults = true;
-        state.recognition.continuous = true;
-        state.recognition.maxAlternatives = 1;
-
-        state.recognition.onresult = (e) => {
-            let finalTranscript = '';
-            let interimTranscript = '';
-            for (let i = e.resultIndex; i < e.results.length; i++) {
-                if (e.results[i].isFinal) {
-                    finalTranscript += e.results[i][0].transcript;
-                } else {
-                    interimTranscript += e.results[i][0].transcript;
-                }
-            }
-            const input = document.getElementById('translate-input');
-            if (finalTranscript) {
-                input.value += finalTranscript;
-            }
-        };
-
-        state.recognition.onerror = () => {
-            this.stop();
-        };
-
-        state.recognition.onend = () => {
-            if (state.voiceRecording) {
-                try { state.recognition.start(); } catch(e) {}
-            }
-        };
-    },
-
-    start() {
-        if (!state.recognition) return;
-        state.voiceRecording = true;
-        try {
-            state.recognition.lang = state.translateDir === 'auto-en' ? 'ru-RU' : 'en-US';
-            state.recognition.start();
-        } catch(e) {}
-        document.getElementById('btn-voice').classList.add('recording');
-        document.getElementById('voice-indicator').classList.remove('hidden');
-    },
-
-    stop() {
-        if (!state.recognition) return;
-        state.voiceRecording = false;
-        try { state.recognition.stop(); } catch(e) {}
-        document.getElementById('btn-voice').classList.remove('recording');
-        document.getElementById('voice-indicator').classList.add('hidden');
+        console.warn('All currency APIs failed, keeping rate:', state.settings.currencyRate);
+        return state.settings.currencyRate;
     }
 };
 
@@ -332,7 +316,17 @@ const app = {
         this.updateTimerDisplay();
         state.timerInterval = setInterval(() => app.updateTimerDisplay(), 1000);
 
-        voiceInput.init();
+        const translateInput = document.getElementById('translate-input');
+        if (translateInput) {
+            translateInput.addEventListener('input', () => {
+                const btn = document.getElementById('btn-clear-input');
+                if (translateInput.value.trim()) {
+                    btn.classList.remove('hidden');
+                } else {
+                    btn.classList.add('hidden');
+                }
+            });
+        }
 
         currencyApi.fetchRate().then(() => {
             this.updateHome();
@@ -1427,10 +1421,18 @@ const app = {
     },
 
     // --- TRANSLATOR ---
-    swapTranslateDir() {
-        state.translateDir = state.translateDir === 'auto-en' ? 'auto-ru' : 'auto-en';
-        document.getElementById('translate-dir-label').textContent = state.translateDir === 'auto-en' ? 'Авто → EN' : 'Авто → RU';
-        document.getElementById('translate-input').placeholder = state.translateDir === 'auto-en' ? 'Введите текст или нажмите 🎤...' : 'Enter text or tap 🎤...';
+    detectLanguage(text) {
+        const cyrillic = /[а-яё]/i;
+        return cyrillic.test(text) ? 'ru' : 'en';
+    },
+
+    clearTranslateInput() {
+        document.getElementById('translate-input').value = '';
+        document.getElementById('btn-clear-input').classList.add('hidden');
+        document.getElementById('translate-output').classList.add('hidden');
+        document.getElementById('btn-copy-translate').classList.add('hidden');
+        document.getElementById('btn-reverse-translate').classList.add('hidden');
+        document.getElementById('translate-detected').classList.add('hidden');
     },
 
     async doTranslate() {
@@ -1441,8 +1443,12 @@ const app = {
         btn.classList.add('loading');
         btn.disabled = true;
 
-        const targetLang = state.translateDir.endsWith('en') ? 'en' : 'ru';
-        const langPair = `autodetect|${targetLang}`;
+        const detectedLang = this.detectLanguage(input);
+        const targetLang = detectedLang === 'ru' ? 'en' : 'ru';
+        const langPair = `${detectedLang}|${targetLang}`;
+
+        const dirLabel = document.getElementById('translate-dir-label');
+        dirLabel.textContent = detectedLang === 'ru' ? 'RU → EN' : 'EN → RU';
 
         try {
             const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(input)}&langpair=${langPair}`;
@@ -1450,13 +1456,10 @@ const app = {
             const data = await resp.json();
 
             let result = '';
-            let detected = '';
             if (data.responseStatus === 200 && data.responseData) {
                 result = data.responseData.translatedText;
-                detected = data.responseData.detected || '';
             } else if (data.matches && data.matches.length > 0) {
                 result = data.matches[0].translation;
-                detected = data.matches[0].segment || '';
             } else {
                 result = 'Ошибка перевода';
             }
@@ -1464,16 +1467,10 @@ const app = {
             document.getElementById('translate-output').textContent = result;
             document.getElementById('translate-output').classList.remove('hidden');
             document.getElementById('btn-copy-translate').classList.remove('hidden');
-
-            if (detected) {
-                const detEl = document.getElementById('translate-detected');
-                const langName = detected.toLowerCase().includes('ru') ? 'Русский' : 'English';
-                detEl.textContent = `Определён: ${langName}`;
-                detEl.classList.remove('hidden');
-            }
+            document.getElementById('btn-reverse-translate').classList.remove('hidden');
 
             state.translations.unshift({
-                from: 'auto',
+                from: detectedLang,
                 to: targetLang,
                 text: input,
                 result,
@@ -1484,12 +1481,26 @@ const app = {
             storage.save();
             this.renderTranslateHistory();
         } catch (e) {
+            console.error('Translate error:', e);
             document.getElementById('translate-output').textContent = 'Ошибка сети. Проверьте интернет.';
             document.getElementById('translate-output').classList.remove('hidden');
         }
 
         btn.classList.remove('loading');
         btn.disabled = false;
+    },
+
+    async reverseTranslate() {
+        const result = document.getElementById('translate-output').textContent;
+        if (!result) return;
+
+        document.getElementById('translate-input').value = result;
+        document.getElementById('btn-clear-input').classList.remove('hidden');
+        document.getElementById('translate-output').classList.add('hidden');
+        document.getElementById('btn-copy-translate').classList.add('hidden');
+        document.getElementById('btn-reverse-translate').classList.add('hidden');
+
+        await this.doTranslate();
     },
 
     copyTranslation() {
@@ -1523,14 +1534,6 @@ const app = {
         state.translations = [];
         storage.save();
         this.renderTranslateHistory();
-    },
-
-    toggleVoiceInput() {
-        if (state.voiceRecording) {
-            voiceInput.stop();
-        } else {
-            voiceInput.start();
-        }
     },
 
     // --- SITES CRUD ---

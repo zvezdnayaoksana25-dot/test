@@ -69,6 +69,7 @@
                 <button class="filter-btn active" data-filter="today" onclick="app.setFilter('today')">Сегодня</button>
                 <button class="filter-btn" data-filter="week" onclick="app.setFilter('week')">Неделя</button>
                 <button class="filter-btn" data-filter="month" onclick="app.setFilter('month')">Месяц</button>
+                <button class="filter-btn" data-filter="custom" onclick="app.showCustomPeriod()">Период</button>
                 <button class="filter-btn" data-filter="all" onclick="app.setFilter('all')">Всё</button>
             </div>
             <div class="scroll-content">
@@ -103,6 +104,7 @@
             <div class="filter-bar">
                 <button class="filter-btn active" data-stat="week" onclick="app.setStatPeriod('week')">Неделя</button>
                 <button class="filter-btn" data-stat="month" onclick="app.setStatPeriod('month')">Месяц</button>
+                <button class="filter-btn" data-stat="custom" onclick="app.showCustomPeriod()">Период</button>
                 <button class="filter-btn" data-stat="all" onclick="app.setStatPeriod('all')">Всё</button>
             </div>
             <div class="stats-tabs">
@@ -124,22 +126,16 @@
             <div class="scroll-content">
                 <div class="translator-direction">
                     <span id="translate-dir-label">Авто → EN</span>
-                    <button class="btn-swap" onclick="app.swapTranslateDir()">⇄</button>
                 </div>
 
                 <div class="card translate-card">
                     <div class="translate-input-row">
-                        <textarea id="translate-input" placeholder="Введите текст или нажмите 🎤..." rows="3"></textarea>
-                        <button id="btn-voice" class="btn-voice" onclick="app.toggleVoiceInput()">🎤</button>
-                    </div>
-                    <div id="voice-indicator" class="voice-indicator hidden">
-                        <span class="voice-dot"></span>
-                        <span class="voice-dot"></span>
-                        <span class="voice-dot"></span>
-                        <span>Слушаю...</span>
+                        <textarea id="translate-input" placeholder="Введите текст..." rows="3"></textarea>
+                        <button id="btn-clear-input" class="btn-clear-input hidden" onclick="app.clearTranslateInput()">✕</button>
                     </div>
                     <button id="btn-translate" class="btn-primary" onclick="app.doTranslate()">Перевести</button>
                     <div id="translate-output" class="translate-output hidden"></div>
+                    <button id="btn-reverse-translate" class="btn-reverse hidden" onclick="app.reverseTranslate()">⇄ Перевести обратно</button>
                     <div id="translate-detected" class="translate-detected hidden"></div>
                     <button id="btn-copy-translate" class="btn-secondary hidden" onclick="app.copyTranslation()">Копировать</button>
                 </div>
@@ -346,6 +342,21 @@
                 <div class="modal-actions">
                     <button class="btn-secondary modal-btn" onclick="app.closeAddSite()">Отмена</button>
                     <button class="btn-primary modal-btn" onclick="app.saveNewSite()">Сохранить</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- МОДАЛЬНОЕ ОКНО ВЫБОРА ПЕРИОДА -->
+        <div id="modal-custom-period" class="modal-overlay modal-center hidden" onclick="app.closeCustomPeriod(event)">
+            <div class="modal-card modal-card-center" onclick="event.stopPropagation()">
+                <h2>Выбрать период</h2>
+                <label class="modal-label">С</label>
+                <input type="date" id="period-start">
+                <label class="modal-label">По</label>
+                <input type="date" id="period-end">
+                <div class="modal-actions">
+                    <button class="btn-secondary modal-btn" onclick="app.closeCustomPeriod()">Отмена</button>
+                    <button class="btn-primary modal-btn" onclick="app.applyCustomPeriod()">Применить</button>
                 </div>
             </div>
         </div>
